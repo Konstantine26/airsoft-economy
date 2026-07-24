@@ -1,13 +1,36 @@
 import { StatusBar } from 'expo-status-bar';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import { TeamsScreen } from './components/TeamsScreen';
+import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { AuthScreen } from './components/AuthScreen';
+import { Dashboard } from './components/Dashboard';
+import { ForceChangePasswordScreen } from './components/ForceChangePasswordScreen';
+
+function Root() {
+  const { session, profile, loading } = useAuth();
+
+  if (loading || (session && !profile)) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (!session) {
+    return <AuthScreen />;
+  }
+
+  return profile?.must_change_password ? <ForceChangePasswordScreen /> : <Dashboard />;
+}
 
 export default function App() {
   return (
-    <SafeAreaView style={styles.container}>
-      <TeamsScreen />
-      <StatusBar style="auto" />
-    </SafeAreaView>
+    <AuthProvider>
+      <SafeAreaView style={styles.container}>
+        <Root />
+        <StatusBar style="auto" />
+      </SafeAreaView>
+    </AuthProvider>
   );
 }
 
@@ -15,5 +38,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  center: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
