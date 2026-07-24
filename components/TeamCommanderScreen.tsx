@@ -5,6 +5,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -15,6 +16,7 @@ type GameWithProject = Game & { project_name: string };
 
 export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
+  const [teamBalance, setTeamBalance] = useState(teams[0].balance);
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
   const [games, setGames] = useState<GameWithProject[]>([]);
@@ -104,6 +106,20 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
       return;
     }
     loadRoster(activeTeam);
+  };
+
+  const distribute = async (profileId: string, amount: number) => {
+    setError(null);
+    const { error } = await supabase.rpc('distribute_to_participant', {
+      p_from_team_id: activeTeam.id,
+      p_to_profile_id: profileId,
+      p_amount: amount,
+    });
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setTeamBalance((b) => b - amount);
   };
 
   const pickSide = async (sideId: string) => {
@@ -217,7 +233,10 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
             <Pressable
               key={team.id}
               style={[styles.chip, activeTeam.id === team.id && styles.chipSelected]}
-              onPress={() => setActiveTeam(team)}
+              onPress={() => {
+                setActiveTeam(team);
+                setTeamBalance(team.balance);
+              }}
             >
               <Text style={activeTeam.id === team.id ? styles.chipTextSelected : styles.chipText}>
                 {team.name}
@@ -227,16 +246,21 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
         </View>
       ) : null}
 
-      <Text style={styles.subtitle}>Баланс: {activeTeam.balance.toFixed(2)} ₽</Text>
+      <Text style={styles.subtitle}>Баланс команды: {teamBalance.toFixed(2)} ₽</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={styles.sectionTitle}>Ростер</Text>
       {roster.map((row) => (
-        <Pressable key={row.id} style={styles.rosterRow} onPress={() => removeMember(row)}>
-          <Text style={styles.rosterName}>{row.full_name}</Text>
-          <Text style={styles.removeText}>Убрать</Text>
-        </Pressable>
+        <View key={row.id} style={styles.rosterCard}>
+          <View style={styles.rosterRow}>
+            <Text style={styles.rosterName}>{row.full_name}</Text>
+            <Pressable onPress={() => removeMember(row)}>
+              <Text style={styles.removeText}>Убрать</Text>
+            </Pressable>
+          </View>
+          <DistributeRow onDistribute={(amount) => distribute(row.profile_id, amount)} />
+        </View>
       ))}
 
       <Text style={styles.sectionTitle}>Добавить в команду</Text>
@@ -255,6 +279,32 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
         </Pressable>
       ))}
     </ScrollView>
+  );
+}
+
+function DistributeRow({ onDistribute }: { onDistribute: (amount: number) => void }) {
+  const [amount, setAmount] = useState('');
+
+  const submit = () => {
+    const numeric = Number(amount.replace(',', '.'));
+    if (!Number.isFinite(numeric) || numeric <= 0) return;
+    onDistribute(numeric);
+    setAmount('');
+  };
+
+  return (
+    <View style={styles.distributeRow}>
+      <TextInput
+        style={styles.distributeInput}
+        placeholder="Сумма"
+        value={amount}
+        onChangeText={setAmount}
+        keyboardType="decimal-pad"
+      />
+      <Pressable style={styles.distributeButton} onPress={submit}>
+        <Text style={styles.distributeButtonText}>Выдать</Text>
+      </Pressable>
+    </View>
   );
 }
 
@@ -333,13 +383,42 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
   },
+  rosterCard: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ddd',
+    paddingVertical: 8,
+  },
   rosterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
+    paddingVertical: 4,
+  },
+  distributeRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 6,
+    marginBottom: 4,
+  },
+  distributeInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 14,
+  },
+  distributeButton: {
+    backgroundColor: '#111',
+    borderRadius: 8,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
+  },
+  distributeButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 13,
   },
   rosterName: {
     fontSize: 15,

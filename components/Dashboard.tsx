@@ -8,8 +8,9 @@ import { TeamCommanderScreen } from './TeamCommanderScreen';
 import { SideCommanderScreen } from './SideCommanderScreen';
 import { ParticipantScreen } from './ParticipantScreen';
 import { TeamsScreen } from './TeamsScreen';
+import { WalletScreen } from './WalletScreen';
 
-type TabKey = 'home' | 'economy' | 'team' | 'side' | 'organizer' | 'admin';
+type TabKey = 'home' | 'wallet' | 'economy' | 'team' | 'side' | 'organizer' | 'admin';
 
 export function Dashboard() {
   const { profile, signOut } = useAuth();
@@ -18,6 +19,7 @@ export function Dashboard() {
 
   const tabs = useMemo(() => {
     const list: { key: TabKey; label: string }[] = [{ key: 'home', label: 'Главная' }];
+    list.push({ key: 'wallet', label: 'Кошелёк' });
     list.push({ key: 'economy', label: 'Экономика' });
     if (capabilities.commandedTeams.length > 0) list.push({ key: 'team', label: 'Моя команда' });
     if (capabilities.commandedSides.length > 0) list.push({ key: 'side', label: 'Моя сторона' });
@@ -59,6 +61,7 @@ export function Dashboard() {
 
       <View style={styles.body}>
         {tab === 'home' ? <ParticipantScreen ownMembership={capabilities.ownMembership} /> : null}
+        {tab === 'wallet' ? <WalletScreen /> : null}
         {tab === 'economy' ? <TeamsScreen /> : null}
         {tab === 'team' ? <TeamCommanderScreen teams={capabilities.commandedTeams} /> : null}
         {tab === 'side' ? <SideCommanderScreen sides={capabilities.commandedSides} /> : null}

@@ -5,6 +5,8 @@ export type Profile = {
   full_name: string;
   role: Role;
   must_change_password: boolean;
+  balance: number;
+  participant_number: number;
   created_at: string;
 };
 
@@ -70,6 +72,24 @@ export type GameParticipant = {
   game_id: string;
   team_id: string;
   profile_id: string;
+  created_at: string;
+};
+
+export type PersonalTransactionKind =
+  | 'deposit'
+  | 'team_to_participant'
+  | 'participant_to_team'
+  | 'participant_to_participant';
+
+export type PersonalTransaction = {
+  id: string;
+  kind: PersonalTransactionKind;
+  from_profile_id: string | null;
+  from_team_id: string | null;
+  to_profile_id: string | null;
+  to_team_id: string | null;
+  amount: number;
+  note: string | null;
   created_at: string;
 };
 
@@ -234,6 +254,37 @@ export type Database = {
           },
         ];
       };
+      personal_transactions: {
+        Row: PersonalTransaction;
+        Insert: Partial<PersonalTransaction> & { kind: PersonalTransactionKind; amount: number };
+        Update: Partial<PersonalTransaction>;
+        Relationships: [
+          {
+            foreignKeyName: 'personal_transactions_from_profile_id_fkey';
+            columns: ['from_profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'personal_transactions_to_profile_id_fkey';
+            columns: ['to_profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'personal_transactions_from_team_id_fkey';
+            columns: ['from_team_id'];
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'personal_transactions_to_team_id_fkey';
+            columns: ['to_team_id'];
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -245,6 +296,39 @@ export type Database = {
           p_note?: string | null;
         };
         Returns: Transaction;
+      };
+      deposit_to_participant: {
+        Args: {
+          p_to_profile_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
+      };
+      distribute_to_participant: {
+        Args: {
+          p_from_team_id: string;
+          p_to_profile_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
+      };
+      transfer_to_team: {
+        Args: {
+          p_to_team_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
+      };
+      transfer_to_participant: {
+        Args: {
+          p_to_profile_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
       };
     };
   };
