@@ -1,4 +1,4 @@
-export type Role = 'admin' | 'organizer' | 'member';
+export type Role = 'admin' | 'member';
 
 export type Profile = {
   id: string;
@@ -42,11 +42,49 @@ export type Project = {
   created_at: string;
 };
 
+export type ProjectOrganizer = {
+  id: string;
+  project_id: string;
+  profile_id: string;
+  created_at: string;
+};
+
+export type GameOrganizer = {
+  id: string;
+  game_id: string;
+  profile_id: string;
+  created_at: string;
+};
+
+export type PolygonType = 'built_up' | 'forest' | 'field' | 'sqb' | 'mixed';
+
+export type Polygon = {
+  id: string;
+  name: string;
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  address: string | null;
+  type: PolygonType;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type PolygonMap = {
+  id: string;
+  polygon_id: string;
+  storage_path: string;
+  file_name: string;
+  content_type: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
 export type Game = {
   id: string;
   project_id: string;
   name: string;
-  polygon: string;
+  polygon_id: string;
   starts_at: string | null;
   created_by: string | null;
   created_at: string;
@@ -67,11 +105,15 @@ export type GameTeamSide = {
   created_at: string;
 };
 
+export type GameParticipantStatus = 'pending' | 'confirmed';
+
 export type GameParticipant = {
   id: string;
   game_id: string;
   team_id: string;
   profile_id: string;
+  status: GameParticipantStatus;
+  side_id: string | null;
   created_at: string;
 };
 
@@ -166,9 +208,47 @@ export type Database = {
           },
         ];
       };
+      project_organizers: {
+        Row: ProjectOrganizer;
+        Insert: Partial<ProjectOrganizer> & { project_id: string; profile_id: string };
+        Update: Partial<ProjectOrganizer>;
+        Relationships: [
+          {
+            foreignKeyName: 'project_organizers_project_id_fkey';
+            columns: ['project_id'];
+            referencedRelation: 'projects';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'project_organizers_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      game_organizers: {
+        Row: GameOrganizer;
+        Insert: Partial<GameOrganizer> & { game_id: string; profile_id: string };
+        Update: Partial<GameOrganizer>;
+        Relationships: [
+          {
+            foreignKeyName: 'game_organizers_game_id_fkey';
+            columns: ['game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'game_organizers_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       games: {
         Row: Game;
-        Insert: Partial<Game> & { project_id: string; name: string; polygon: string };
+        Insert: Partial<Game> & { project_id: string; name: string; polygon_id: string };
         Update: Partial<Game>;
         Relationships: [
           {
@@ -179,6 +259,44 @@ export type Database = {
           },
           {
             foreignKeyName: 'games_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'games_polygon_id_fkey';
+            columns: ['polygon_id'];
+            referencedRelation: 'polygons';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      polygons: {
+        Row: Polygon;
+        Insert: Partial<Polygon> & { name: string; type: PolygonType };
+        Update: Partial<Polygon>;
+        Relationships: [
+          {
+            foreignKeyName: 'polygons_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      polygon_maps: {
+        Row: PolygonMap;
+        Insert: Partial<PolygonMap> & { polygon_id: string; storage_path: string; file_name: string };
+        Update: Partial<PolygonMap>;
+        Relationships: [
+          {
+            foreignKeyName: 'polygon_maps_polygon_id_fkey';
+            columns: ['polygon_id'];
+            referencedRelation: 'polygons';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'polygon_maps_created_by_fkey';
             columns: ['created_by'];
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
@@ -252,6 +370,12 @@ export type Database = {
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'game_participants_side_id_fkey';
+            columns: ['side_id'];
+            referencedRelation: 'game_sides';
+            referencedColumns: ['id'];
+          },
         ];
       };
       personal_transactions: {
@@ -304,6 +428,14 @@ export type Database = {
           p_note?: string | null;
         };
         Returns: PersonalTransaction;
+      };
+      deposit_to_team: {
+        Args: {
+          p_to_team_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: Transaction;
       };
       distribute_to_participant: {
         Args: {

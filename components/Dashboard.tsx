@@ -20,15 +20,14 @@ export function Dashboard() {
   const tabs = useMemo(() => {
     const list: { key: TabKey; label: string }[] = [{ key: 'home', label: 'Главная' }];
     list.push({ key: 'wallet', label: 'Кошелёк' });
-    list.push({ key: 'economy', label: 'Экономика' });
+    const isOrganizerOrAdmin = profile?.role === 'admin' || capabilities.isOrganizer;
+    if (isOrganizerOrAdmin) list.push({ key: 'economy', label: 'Экономика' });
     if (capabilities.commandedTeams.length > 0) list.push({ key: 'team', label: 'Моя команда' });
     if (capabilities.commandedSides.length > 0) list.push({ key: 'side', label: 'Моя сторона' });
-    if (profile?.role === 'organizer' || profile?.role === 'admin') {
-      list.push({ key: 'organizer', label: 'Организатор' });
-    }
+    if (isOrganizerOrAdmin) list.push({ key: 'organizer', label: 'Организатор' });
     if (profile?.role === 'admin') list.push({ key: 'admin', label: 'Админ' });
     return list;
-  }, [capabilities.commandedTeams, capabilities.commandedSides, profile]);
+  }, [capabilities.commandedTeams, capabilities.commandedSides, capabilities.isOrganizer, profile]);
 
   if (!profile || capabilities.loading) {
     return (

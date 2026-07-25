@@ -9,10 +9,10 @@ import {
   View,
 } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Game, GameSide, Profile, Team } from '../lib/database.types';
+import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 
 type RosterRow = { id: string; profile_id: string; full_name: string };
-type GameWithProject = Game & { project_name: string };
+type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
 
 export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
@@ -23,7 +23,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
   const [activeGame, setActiveGame] = useState<GameWithProject | null>(null);
   const [sides, setSides] = useState<GameSide[]>([]);
   const [teamSideId, setTeamSideId] = useState<string | null>(null);
-  const [registeredProfileIds, setRegisteredProfileIds] = useState<Set<string>>(new Set());
+  const [registeredProfiles, setRegisteredProfiles] = useState<Map<string, 'pending' | 'confirmed'>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +47,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
   const loadGames = useCallback(async () => {
     const { data } = await supabase
       .from('games')
-      .select('*, project:projects(name)')
+      .select('*, project:projects(name), polygon:polygons(*)')
       .order('created_at', { ascending: false });
     const rows: GameWithProject[] = (data ?? []).map((row: any) => ({
       ...row,
@@ -75,13 +75,13 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
           .maybeSingle(),
         supabase
           .from('game_participants')
-          .select('profile_id')
+          .select('profile_id, status')
           .eq('game_id', game.id)
           .eq('team_id', activeTeam.id),
       ]);
       setSides(sidesRes.data ?? []);
       setTeamSideId(teamSideRes.data?.side_id ?? null);
-      setRegisteredProfileIds(new Set((participantsRes.data ?? []).map((r) => r.profile_id)));
+      setRegisteredProfiles(new Map((participantsRes.data ?? []).map((r) => [r.profile_id, r.status])));
     },
     [activeTeam]
   );
@@ -141,7 +141,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
   const toggleParticipant = async (profileId: string) => {
     if (!activeGame) return;
     setError(null);
-    if (registeredProfileIds.has(profileId)) {
+    if (registeredProfiles.has(profileId)) {
       const { error } = await supabase
         .from('game_participants')
         .delete()
@@ -151,8 +151,8 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
         setError(error.message);
         return;
       }
-      setRegisteredProfileIds((prev) => {
-        const next = new Set(prev);
+      setRegisteredProfiles((prev) => {
+        const next = new Map(prev);
         next.delete(profileId);
         return next;
       });
@@ -164,7 +164,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
         setError(error.message);
         return;
       }
-      setRegisteredProfileIds((prev) => new Set(prev).add(profileId));
+      setRegisteredProfiles((prev) => new Map(prev).set(profileId, 'pending'));
     }
   };
 
@@ -183,7 +183,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
           <Text style={styles.back}>‹ Игры</Text>
         </Pressable>
         <Text style={styles.title}>{activeGame.name}</Text>
-        <Text style={styles.subtitle}>{activeGame.project_name} · {activeGame.polygon}</Text>
+        <Text style={styles.subtitle}>{activeGame.project_name} · {activeGame.polygon?.name ?? '—'}</Text>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -206,18 +206,25 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
         {!teamSideId ? (
           <Text style={styles.label}>Сначала выберите сторону</Text>
         ) : (
-          roster.map((row) => (
-            <Pressable
-              key={row.id}
-              style={styles.rosterRow}
-              onPress={() => toggleParticipant(row.profile_id)}
-            >
-              <Text style={styles.rosterName}>{row.full_name}</Text>
-              <Text style={registeredProfileIds.has(row.profile_id) ? styles.checkOn : styles.checkOff}>
-                {registeredProfileIds.has(row.profile_id) ? 'Играет' : 'Не играет'}
-              </Text>
-            </Pressable>
-          ))
+          roster.map((row) => {
+            const status = registeredProfiles.get(row.profile_id);
+            return (
+              <Pressable
+                key={row.id}
+                style={styles.rosterRow}
+                onPress={() => toggleParticipant(row.profile_id)}
+              >
+                <Text style={styles.rosterName}>{row.full_name}</Text>
+                <Text style={status ? styles.checkOn : styles.checkOff}>
+                  {status === 'confirmed'
+                    ? 'Подтверждён'
+                    : status === 'pending'
+                      ? 'На подтверждении'
+                      : 'Не играет'}
+                </Text>
+              </Pressable>
+            );
+          })
         )}
       </ScrollView>
     );
@@ -275,7 +282,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
       {games.map((game) => (
         <Pressable key={game.id} style={styles.card} onPress={() => openGame(game)}>
           <Text style={styles.cardTitle}>{game.name}</Text>
-          <Text style={styles.label}>{game.project_name} · {game.polygon}</Text>
+          <Text style={styles.label}>{game.project_name} · {game.polygon?.name ?? '—'}</Text>
         </Pressable>
       ))}
     </ScrollView>

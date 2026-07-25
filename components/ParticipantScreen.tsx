@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Game, Project, Team, TeamMember } from '../lib/database.types';
+import type { Game, Polygon, Project, Team, TeamMember } from '../lib/database.types';
+import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
@@ -10,7 +11,7 @@ type Props = {
 export function ParticipantScreen({ ownMembership }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
-  const [games, setGames] = useState<Game[]>([]);
+  const [games, setGames] = useState<(Game & { polygon: Polygon | null })[]>([]);
   const [roster, setRoster] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -38,10 +39,10 @@ export function ParticipantScreen({ ownMembership }: Props) {
     setSelectedProject(project);
     const { data } = await supabase
       .from('games')
-      .select('*')
+      .select('*, polygon:polygons(*)')
       .eq('project_id', project.id)
       .order('created_at', { ascending: false });
-    setGames(data ?? []);
+    setGames((data as (Game & { polygon: Polygon | null })[]) ?? []);
   };
 
   if (loading) {
@@ -70,7 +71,8 @@ export function ParticipantScreen({ ownMembership }: Props) {
           games.map((game) => (
             <View key={game.id} style={styles.card}>
               <Text style={styles.cardTitle}>{game.name}</Text>
-              <Text style={styles.label}>Полигон: {game.polygon}</Text>
+              <Text style={styles.label}>Полигон: {game.polygon?.name ?? '—'}</Text>
+              {game.polygon_id ? <PolygonMapThumbnails polygonId={game.polygon_id} /> : null}
             </View>
           ))
         )}

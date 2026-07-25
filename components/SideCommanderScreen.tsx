@@ -3,10 +3,11 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { supabase } from '../lib/supabase';
 import type { GameSide } from '../lib/database.types';
 
+type ParticipantEntry = { full_name: string; status: 'pending' | 'confirmed' };
 type TeamWithRoster = {
   team_id: string;
   team_name: string;
-  participants: string[];
+  participants: ParticipantEntry[];
 };
 
 export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
@@ -20,32 +21,47 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
     setLoading(true);
     setError(null);
 
-    const [gameRes, teamSidesRes] = await Promise.all([
-      supabase.from('games').select('*, project:projects(name)').eq('id', side.game_id).single(),
-      supabase.from('game_team_sides').select('team_id, team:teams(id, name)').eq('side_id', side.id),
+    const [gameRes, teamSidesRes, participantsRes] = await Promise.all([
+      supabase
+        .from('games')
+        .select('*, project:projects(name), polygon:polygons(name)')
+        .eq('id', side.game_id)
+        .single(),
+      supabase.from('game_team_sides').select('team_id, side_id, team:teams(id, name)').eq('game_id', side.game_id),
+      supabase
+        .from('game_participants')
+        .select('team_id, side_id, status, profile:profiles(full_name)')
+        .eq('game_id', side.game_id),
     ]);
 
     if (gameRes.error) setError(gameRes.error.message);
     const game: any = gameRes.data;
-    setGameLabel(game ? `${game.project?.name ?? ''} · ${game.name} · ${game.polygon}` : '');
+    setGameLabel(game ? `${game.project?.name ?? ''} · ${game.name} · ${game.polygon?.name ?? '—'}` : '');
 
-    const teamRows: { team_id: string; team_name: string }[] = (teamSidesRes.data ?? []).map(
-      (row: any) => ({ team_id: row.team_id, team_name: row.team?.name ?? '' })
-    );
+    const teamSideMap = new Map<string, string>();
+    const teamNameMap = new Map<string, string>();
+    for (const row of (teamSidesRes.data as any[]) ?? []) {
+      teamSideMap.set(row.team_id, row.side_id);
+      teamNameMap.set(row.team_id, row.team?.name ?? '');
+    }
 
-    const withRosters: TeamWithRoster[] = await Promise.all(
-      teamRows.map(async (t) => {
-        const { data } = await supabase
-          .from('game_participants')
-          .select('profile:profiles(full_name)')
-          .eq('game_id', side.game_id)
-          .eq('team_id', t.team_id);
-        return {
-          ...t,
-          participants: (data ?? []).map((r: any) => r.profile?.full_name || '(без имени)'),
-        };
-      })
-    );
+    const byTeam = new Map<string, ParticipantEntry[]>();
+    for (const row of (participantsRes.data as any[]) ?? []) {
+      const effectiveSideId = row.side_id ?? teamSideMap.get(row.team_id) ?? null;
+      if (effectiveSideId !== side.id) continue;
+      const entry: ParticipantEntry = {
+        full_name: row.profile?.full_name || '(без имени)',
+        status: row.status,
+      };
+      if (!byTeam.has(row.team_id)) byTeam.set(row.team_id, []);
+      byTeam.get(row.team_id)!.push(entry);
+    }
+
+    const withRosters: TeamWithRoster[] = Array.from(byTeam.entries()).map(([teamId, participants]) => ({
+      team_id: teamId,
+      team_name: teamNameMap.get(teamId) ?? '',
+      participants,
+    }));
 
     setTeams(withRosters);
     setLoading(false);
@@ -92,9 +108,9 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
             {team.participants.length === 0 ? (
               <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
             ) : (
-              team.participants.map((name, idx) => (
+              team.participants.map((p, idx) => (
                 <Text key={idx} style={styles.participant}>
-                  {name}
+                  {p.full_name} {p.status === 'pending' ? '· на подтверждении' : ''}
                 </Text>
               ))
             )}
