@@ -22,35 +22,56 @@ const KIND_LABEL: Record<PersonalTransactionKind, string> = {
   participant_to_participant: 'Перевод',
 };
 
-export function WalletScreen() {
-  const { profile, refreshProfile, session } = useAuth();
+type Props = {
+  projectId: string | null;
+};
+
+export function WalletScreen({ projectId }: Props) {
+  const { profile, session } = useAuth();
   const capabilities = useCapabilities();
+  const [balance, setBalance] = useState(0);
   const [journal, setJournal] = useState<JournalRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [showQr, setShowQr] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
 
-  const loadJournal = useCallback(async () => {
-    if (!session) return;
-    const { data } = await supabase
-      .from('personal_transactions')
-      .select(
-        '*, from_profile:profiles!personal_transactions_from_profile_id_fkey(full_name), to_profile:profiles!personal_transactions_to_profile_id_fkey(full_name), from_team:teams!personal_transactions_from_team_id_fkey(name), to_team:teams!personal_transactions_to_team_id_fkey(name)'
-      )
-      .or(`from_profile_id.eq.${session.user.id},to_profile_id.eq.${session.user.id}`)
-      .order('created_at', { ascending: false });
-    setJournal((data as unknown as JournalRow[]) ?? []);
+  const load = useCallback(async () => {
+    if (!session || !projectId) {
+      setBalance(0);
+      setJournal([]);
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const [balanceRes, journalRes] = await Promise.all([
+      supabase
+        .from('project_profile_balances')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('profile_id', session.user.id)
+        .maybeSingle(),
+      supabase
+        .from('personal_transactions')
+        .select(
+          '*, from_profile:profiles!personal_transactions_from_profile_id_fkey(full_name), to_profile:profiles!personal_transactions_to_profile_id_fkey(full_name), from_team:teams!personal_transactions_from_team_id_fkey(name), to_team:teams!personal_transactions_to_team_id_fkey(name)'
+        )
+        .eq('project_id', projectId)
+        .or(`from_profile_id.eq.${session.user.id},to_profile_id.eq.${session.user.id}`)
+        .order('created_at', { ascending: false }),
+    ]);
+    setBalance(balanceRes.data?.balance ?? 0);
+    setJournal((journalRes.data as unknown as JournalRow[]) ?? []);
     setLoading(false);
-  }, [session]);
+  }, [session, projectId]);
 
   useEffect(() => {
-    loadJournal();
-  }, [loadJournal]);
+    load();
+  }, [load]);
 
   const onTransferDone = useCallback(async () => {
     setSendOpen(false);
-    await Promise.all([refreshProfile(), loadJournal(), capabilities.refresh()]);
-  }, [refreshProfile, loadJournal, capabilities]);
+    await Promise.all([load(), capabilities.refresh()]);
+  }, [load, capabilities]);
 
   if (!profile || loading) {
     return (
@@ -60,10 +81,18 @@ export function WalletScreen() {
     );
   }
 
+  if (!projectId) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.label}>Нет проекта с включённой экономикой</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Кошелёк</Text>
-      <Text style={styles.balance}>{profile.balance.toFixed(2)} ₽</Text>
+      <Text style={styles.balance}>{balance.toFixed(2)} ₽</Text>
       <Text style={styles.label}>Мой номер участника: {profile.participant_number}</Text>
 
       <Pressable style={styles.secondaryButton} onPress={() => setShowQr((v) => !v)}>
@@ -106,6 +135,7 @@ export function WalletScreen() {
 
       <SendMoneyModal
         visible={sendOpen}
+        projectId={projectId}
         ownTeam={capabilities.ownMembership?.team ?? null}
         onClose={() => setSendOpen(false)}
         onSuccess={onTransferDone}

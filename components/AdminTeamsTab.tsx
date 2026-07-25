@@ -12,9 +12,14 @@ import { supabase } from '../lib/supabase';
 import type { Profile, Team } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
 
-export function AdminTeamsTab() {
+type Props = {
+  activeProjectId: string | null;
+};
+
+export function AdminTeamsTab({ activeProjectId }: Props) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [balances, setBalances] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [newTeamName, setNewTeamName] = useState('');
@@ -22,15 +27,20 @@ export function AdminTeamsTab() {
   const [editingName, setEditingName] = useState('');
 
   const load = useCallback(async () => {
-    const [teamsRes, profilesRes] = await Promise.all([
+    setLoading(true);
+    const [teamsRes, profilesRes, balancesRes] = await Promise.all([
       supabase.from('teams').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').order('full_name', { ascending: true }),
+      activeProjectId
+        ? supabase.from('project_team_balances').select('*').eq('project_id', activeProjectId)
+        : Promise.resolve({ data: [], error: null }),
     ]);
     if (teamsRes.error) setError(teamsRes.error.message);
     setTeams(teamsRes.data ?? []);
     setProfiles(profilesRes.data ?? []);
+    setBalances(new Map((balancesRes.data ?? []).map((row) => [row.team_id, row.balance])));
     setLoading(false);
-  }, []);
+  }, [activeProjectId]);
 
   useEffect(() => {
     load();
@@ -86,13 +96,18 @@ export function AdminTeamsTab() {
   };
 
   const deposit = async (teamId: string, amount: number) => {
+    if (!activeProjectId) return;
     setError(null);
-    const { error } = await supabase.rpc('deposit_to_team', { p_to_team_id: teamId, p_amount: amount });
+    const { error } = await supabase.rpc('deposit_to_team', {
+      p_project_id: activeProjectId,
+      p_to_team_id: teamId,
+      p_amount: amount,
+    });
     if (error) {
       setError(error.message);
       return;
     }
-    setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, balance: t.balance + amount } : t)));
+    setBalances((prev) => new Map(prev).set(teamId, (prev.get(teamId) ?? 0) + amount));
   };
 
   if (loading) {
@@ -106,6 +121,12 @@ export function AdminTeamsTab() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {error ? <Text style={styles.error}>{error}</Text> : null}
+      {!activeProjectId ? (
+        <Text style={styles.label}>
+          Нет проекта с включённой экономикой — пополнение недоступно. Включите «Ведение экономики» во
+          вкладке «Проекты и игры».
+        </Text>
+      ) : null}
 
       {teams.map((team) => (
         <View key={team.id} style={styles.card}>
@@ -135,8 +156,16 @@ export function AdminTeamsTab() {
             </View>
           )}
 
-          <Text style={styles.label}>Баланс: {team.balance.toFixed(2)} ₽</Text>
-          <AmountForm placeholder="Пополнить баланс команды" buttonLabel="Пополнить" onSubmit={(amount) => deposit(team.id, amount)} />
+          {activeProjectId ? (
+            <>
+              <Text style={styles.label}>Баланс в проекте: {(balances.get(team.id) ?? 0).toFixed(2)} ₽</Text>
+              <AmountForm
+                placeholder="Пополнить баланс команды"
+                buttonLabel="Пополнить"
+                onSubmit={(amount) => deposit(team.id, amount)}
+              />
+            </>
+          ) : null}
 
           <Text style={styles.label}>Командир</Text>
           <View style={styles.chips}>

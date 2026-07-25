@@ -12,12 +12,13 @@ import type { Team } from '../lib/database.types';
 
 type Props = {
   visible: boolean;
+  projectId: string;
   teams: Team[];
   onClose: () => void;
   onSuccess: () => void;
 };
 
-export function TransferModal({ visible, teams, onClose, onSuccess }: Props) {
+export function TransferModal({ visible, projectId, teams, onClose, onSuccess }: Props) {
   const [fromTeamId, setFromTeamId] = useState<string | null>(null);
   const [toTeamId, setToTeamId] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
@@ -56,6 +57,7 @@ export function TransferModal({ visible, teams, onClose, onSuccess }: Props) {
     setError(null);
 
     const { error: rpcError } = await supabase.rpc('transfer_funds', {
+      p_project_id: projectId,
       p_from_team_id: fromTeamId,
       p_to_team_id: toTeamId,
       p_amount: numericAmount,

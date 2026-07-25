@@ -6,13 +6,15 @@ import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
+  activeProjectId: string | null;
 };
 
-export function ParticipantScreen({ ownMembership }: Props) {
+export function ParticipantScreen({ ownMembership, activeProjectId }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [games, setGames] = useState<(Game & { polygon: Polygon | null })[]>([]);
   const [roster, setRoster] = useState<string[]>([]);
+  const [teamBalance, setTeamBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const loadProjects = useCallback(async () => {
@@ -30,10 +32,25 @@ export function ParticipantScreen({ ownMembership }: Props) {
     setRoster((data ?? []).map((row: any) => row.profile?.full_name || '(без имени)'));
   }, [ownMembership]);
 
+  const loadTeamBalance = useCallback(async () => {
+    if (!ownMembership || !activeProjectId) {
+      setTeamBalance(null);
+      return;
+    }
+    const { data } = await supabase
+      .from('project_team_balances')
+      .select('*')
+      .eq('project_id', activeProjectId)
+      .eq('team_id', ownMembership.team_id)
+      .maybeSingle();
+    setTeamBalance(data?.balance ?? 0);
+  }, [ownMembership, activeProjectId]);
+
   useEffect(() => {
     loadProjects();
     loadRoster();
-  }, [loadProjects, loadRoster]);
+    loadTeamBalance();
+  }, [loadProjects, loadRoster, loadTeamBalance]);
 
   const openProject = async (project: Project) => {
     setSelectedProject(project);
@@ -86,7 +103,9 @@ export function ParticipantScreen({ ownMembership }: Props) {
       {ownMembership ? (
         <View style={styles.card}>
           <Text style={styles.cardTitle}>{ownMembership.team.name}</Text>
-          <Text style={styles.label}>Баланс: {ownMembership.team.balance.toFixed(2)} ₽</Text>
+          <Text style={styles.label}>
+            {teamBalance !== null ? `Баланс: ${teamBalance.toFixed(2)} ₽` : 'Нет проекта с включённой экономикой'}
+          </Text>
           {roster.map((name, idx) => (
             <Text key={idx} style={styles.participant}>
               {name}

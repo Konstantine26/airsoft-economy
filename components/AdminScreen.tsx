@@ -14,7 +14,12 @@ const SUB_TABS: { key: SubTabKey; label: string }[] = [
   { key: 'projects', label: 'Проекты и игры' },
 ];
 
-export function AdminScreen() {
+type Props = {
+  activeProjectId: string | null;
+  onProjectsChanged: () => void;
+};
+
+export function AdminScreen({ activeProjectId, onProjectsChanged }: Props) {
   const [tab, setTab] = useState<SubTabKey>('users');
 
   return (
@@ -32,10 +37,10 @@ export function AdminScreen() {
       </View>
 
       <View style={styles.body}>
-        {tab === 'users' ? <AdminUsersTab /> : null}
-        {tab === 'teams' ? <AdminTeamsTab /> : null}
+        {tab === 'users' ? <AdminUsersTab activeProjectId={activeProjectId} /> : null}
+        {tab === 'teams' ? <AdminTeamsTab activeProjectId={activeProjectId} /> : null}
         {tab === 'polygons' ? <PolygonsScreen /> : null}
-        {tab === 'projects' ? <AdminProjectsTab /> : null}
+        {tab === 'projects' ? <AdminProjectsTab onProjectsChanged={onProjectsChanged} /> : null}
       </View>
     </View>
   );

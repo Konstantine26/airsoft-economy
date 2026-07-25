@@ -14,9 +14,14 @@ import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.typ
 type RosterRow = { id: string; profile_id: string; full_name: string };
 type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
 
-export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
+type Props = {
+  teams: Team[];
+  projectId: string | null;
+};
+
+export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
-  const [teamBalance, setTeamBalance] = useState(teams[0].balance);
+  const [teamBalance, setTeamBalance] = useState(0);
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
   const [games, setGames] = useState<GameWithProject[]>([]);
@@ -56,10 +61,24 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
     setGames(rows);
   }, []);
 
+  const loadBalance = useCallback(async () => {
+    if (!projectId) {
+      setTeamBalance(0);
+      return;
+    }
+    const { data } = await supabase
+      .from('project_team_balances')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('team_id', activeTeam.id)
+      .maybeSingle();
+    setTeamBalance(data?.balance ?? 0);
+  }, [activeTeam, projectId]);
+
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadRoster(activeTeam), loadGames()]).finally(() => setLoading(false));
-  }, [activeTeam, loadRoster, loadGames]);
+    Promise.all([loadRoster(activeTeam), loadGames(), loadBalance()]).finally(() => setLoading(false));
+  }, [activeTeam, loadRoster, loadGames, loadBalance]);
 
   const openGame = useCallback(
     async (game: GameWithProject) => {
@@ -109,8 +128,10 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
   };
 
   const distribute = async (profileId: string, amount: number) => {
+    if (!projectId) return;
     setError(null);
     const { error } = await supabase.rpc('distribute_to_participant', {
+      p_project_id: projectId,
       p_from_team_id: activeTeam.id,
       p_to_profile_id: profileId,
       p_amount: amount,
@@ -240,10 +261,7 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
             <Pressable
               key={team.id}
               style={[styles.chip, activeTeam.id === team.id && styles.chipSelected]}
-              onPress={() => {
-                setActiveTeam(team);
-                setTeamBalance(team.balance);
-              }}
+              onPress={() => setActiveTeam(team)}
             >
               <Text style={activeTeam.id === team.id ? styles.chipTextSelected : styles.chipText}>
                 {team.name}
@@ -253,7 +271,11 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
         </View>
       ) : null}
 
-      <Text style={styles.subtitle}>Баланс команды: {teamBalance.toFixed(2)} ₽</Text>
+      {projectId ? (
+        <Text style={styles.subtitle}>Баланс команды: {teamBalance.toFixed(2)} ₽</Text>
+      ) : (
+        <Text style={styles.subtitle}>Нет проекта с включённой экономикой</Text>
+      )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -266,7 +288,9 @@ export function TeamCommanderScreen({ teams }: { teams: Team[] }) {
               <Text style={styles.removeText}>Убрать</Text>
             </Pressable>
           </View>
-          <DistributeRow onDistribute={(amount) => distribute(row.profile_id, amount)} />
+          {projectId ? (
+            <DistributeRow onDistribute={(amount) => distribute(row.profile_id, amount)} />
+          ) : null}
         </View>
       ))}
 

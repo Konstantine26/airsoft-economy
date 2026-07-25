@@ -5,7 +5,6 @@ export type Profile = {
   full_name: string;
   role: Role;
   must_change_password: boolean;
-  balance: number;
   participant_number: number;
   created_at: string;
 };
@@ -13,9 +12,20 @@ export type Profile = {
 export type Team = {
   id: string;
   name: string;
-  balance: number;
   commander_id: string | null;
   created_at: string;
+};
+
+export type ProjectTeamBalance = {
+  project_id: string;
+  team_id: string;
+  balance: number;
+};
+
+export type ProjectProfileBalance = {
+  project_id: string;
+  profile_id: string;
+  balance: number;
 };
 
 export type TeamMember = {
@@ -27,6 +37,7 @@ export type TeamMember = {
 
 export type Transaction = {
   id: string;
+  project_id: string | null;
   from_team_id: string | null;
   to_team_id: string | null;
   amount: number;
@@ -38,6 +49,7 @@ export type Project = {
   id: string;
   name: string;
   description: string | null;
+  economy_enabled: boolean;
   created_by: string | null;
   created_at: string;
 };
@@ -125,6 +137,7 @@ export type PersonalTransactionKind =
 
 export type PersonalTransaction = {
   id: string;
+  project_id: string | null;
   kind: PersonalTransactionKind;
   from_profile_id: string | null;
   from_team_id: string | null;
@@ -409,11 +422,50 @@ export type Database = {
           },
         ];
       };
+      project_team_balances: {
+        Row: ProjectTeamBalance;
+        Insert: Partial<ProjectTeamBalance> & { project_id: string; team_id: string };
+        Update: Partial<ProjectTeamBalance>;
+        Relationships: [
+          {
+            foreignKeyName: 'project_team_balances_project_id_fkey';
+            columns: ['project_id'];
+            referencedRelation: 'projects';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'project_team_balances_team_id_fkey';
+            columns: ['team_id'];
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      project_profile_balances: {
+        Row: ProjectProfileBalance;
+        Insert: Partial<ProjectProfileBalance> & { project_id: string; profile_id: string };
+        Update: Partial<ProjectProfileBalance>;
+        Relationships: [
+          {
+            foreignKeyName: 'project_profile_balances_project_id_fkey';
+            columns: ['project_id'];
+            referencedRelation: 'projects';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'project_profile_balances_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
       transfer_funds: {
         Args: {
+          p_project_id: string;
           p_from_team_id: string;
           p_to_team_id: string;
           p_amount: number;
@@ -423,6 +475,7 @@ export type Database = {
       };
       deposit_to_participant: {
         Args: {
+          p_project_id: string;
           p_to_profile_id: string;
           p_amount: number;
           p_note?: string | null;
@@ -431,6 +484,7 @@ export type Database = {
       };
       deposit_to_team: {
         Args: {
+          p_project_id: string;
           p_to_team_id: string;
           p_amount: number;
           p_note?: string | null;
@@ -439,6 +493,7 @@ export type Database = {
       };
       distribute_to_participant: {
         Args: {
+          p_project_id: string;
           p_from_team_id: string;
           p_to_profile_id: string;
           p_amount: number;
@@ -448,6 +503,7 @@ export type Database = {
       };
       transfer_to_team: {
         Args: {
+          p_project_id: string;
           p_to_team_id: string;
           p_amount: number;
           p_note?: string | null;
@@ -456,6 +512,7 @@ export type Database = {
       };
       transfer_to_participant: {
         Args: {
+          p_project_id: string;
           p_to_profile_id: string;
           p_amount: number;
           p_note?: string | null;

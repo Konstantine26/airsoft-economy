@@ -13,7 +13,11 @@ import type { Game, Polygon, Profile, Project } from '../lib/database.types';
 
 type GameWithPolygon = Game & { polygon: Polygon | null };
 
-export function AdminProjectsTab() {
+type Props = {
+  onProjectsChanged: () => void;
+};
+
+export function AdminProjectsTab({ onProjectsChanged }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [polygons, setPolygons] = useState<Polygon[]>([]);
@@ -27,9 +31,11 @@ export function AdminProjectsTab() {
 
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
+  const [newProjectEconomyEnabled, setNewProjectEconomyEnabled] = useState(false);
   const [editingProject, setEditingProject] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
+  const [editEconomyEnabled, setEditEconomyEnabled] = useState(false);
 
   const [newGameName, setNewGameName] = useState('');
   const [newGamePolygonId, setNewGamePolygonId] = useState<string | null>(null);
@@ -94,6 +100,7 @@ export function AdminProjectsTab() {
     const { error } = await supabase.from('projects').insert({
       name: newProjectName.trim(),
       description: newProjectDescription.trim() || null,
+      economy_enabled: newProjectEconomyEnabled,
       created_by: userData.user?.id,
     });
     if (error) {
@@ -102,20 +109,27 @@ export function AdminProjectsTab() {
     }
     setNewProjectName('');
     setNewProjectDescription('');
+    setNewProjectEconomyEnabled(false);
     loadProjects();
+    onProjectsChanged();
   };
 
   const startEditProject = () => {
     if (!selectedProject) return;
     setEditName(selectedProject.name);
     setEditDescription(selectedProject.description ?? '');
+    setEditEconomyEnabled(selectedProject.economy_enabled);
     setEditingProject(true);
   };
 
   const saveEditProject = async () => {
     if (!selectedProject || !editName.trim()) return;
     setError(null);
-    const updates = { name: editName.trim(), description: editDescription.trim() || null };
+    const updates = {
+      name: editName.trim(),
+      description: editDescription.trim() || null,
+      economy_enabled: editEconomyEnabled,
+    };
     const { error } = await supabase.from('projects').update(updates).eq('id', selectedProject.id);
     if (error) {
       setError(error.message);
@@ -125,6 +139,7 @@ export function AdminProjectsTab() {
     setSelectedProject(updated);
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setEditingProject(false);
+    onProjectsChanged();
   };
 
   const deleteProject = async (project: Project) => {
@@ -136,6 +151,7 @@ export function AdminProjectsTab() {
     }
     setSelectedProject(null);
     loadProjects();
+    onProjectsChanged();
   };
 
   const toggleProjectOrganizer = async (profileId: string) => {
@@ -263,6 +279,10 @@ export function AdminProjectsTab() {
               value={editDescription}
               onChangeText={setEditDescription}
             />
+            <Pressable style={styles.checkboxRow} onPress={() => setEditEconomyEnabled((v) => !v)}>
+              <View style={[styles.checkbox, editEconomyEnabled && styles.checkboxChecked]} />
+              <Text style={styles.checkboxLabel}>Ведение экономики</Text>
+            </Pressable>
             <View style={styles.row}>
               <Pressable style={[styles.addButton, styles.flexButton]} onPress={saveEditProject}>
                 <Text style={styles.addButtonText}>Сохранить</Text>
@@ -278,6 +298,9 @@ export function AdminProjectsTab() {
             {selectedProject.description ? (
               <Text style={styles.subtitle}>{selectedProject.description}</Text>
             ) : null}
+            <Text style={styles.label}>
+              Ведение экономики: {selectedProject.economy_enabled ? 'включено' : 'выключено'}
+            </Text>
             <View style={styles.row}>
               <Pressable onPress={startEditProject}>
                 <Text style={styles.editLink}>Редактировать</Text>
@@ -374,6 +397,9 @@ export function AdminProjectsTab() {
         <Pressable key={project.id} style={styles.card} onPress={() => openProject(project)}>
           <Text style={styles.cardTitle}>{project.name}</Text>
           {project.description ? <Text style={styles.label}>{project.description}</Text> : null}
+          <Text style={styles.label}>
+            Экономика: {project.economy_enabled ? 'включена' : 'выключена'}
+          </Text>
         </Pressable>
       ))}
 
@@ -390,6 +416,10 @@ export function AdminProjectsTab() {
         value={newProjectDescription}
         onChangeText={setNewProjectDescription}
       />
+      <Pressable style={styles.checkboxRow} onPress={() => setNewProjectEconomyEnabled((v) => !v)}>
+        <View style={[styles.checkbox, newProjectEconomyEnabled && styles.checkboxChecked]} />
+        <Text style={styles.checkboxLabel}>Ведение экономики</Text>
+      </Pressable>
       <Pressable style={styles.addButton} onPress={createProject}>
         <Text style={styles.addButtonText}>Добавить проект</Text>
       </Pressable>
@@ -528,5 +558,25 @@ const styles = StyleSheet.create({
   error: {
     color: '#c00',
     marginBottom: 12,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  checkboxChecked: {
+    backgroundColor: '#111',
+    borderColor: '#111',
+  },
+  checkboxLabel: {
+    fontSize: 14,
   },
 });

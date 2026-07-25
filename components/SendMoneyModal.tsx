@@ -17,12 +17,13 @@ type Mode = 'choose' | 'team-amount' | 'participant-entry' | 'participant-scan' 
 
 type Props = {
   visible: boolean;
+  projectId: string;
   ownTeam: Team | null;
   onClose: () => void;
   onSuccess: () => void;
 };
 
-export function SendMoneyModal({ visible, ownTeam, onClose, onSuccess }: Props) {
+export function SendMoneyModal({ visible, projectId, ownTeam, onClose, onSuccess }: Props) {
   const [mode, setMode] = useState<Mode>('choose');
   const [amount, setAmount] = useState('');
   const [numberInput, setNumberInput] = useState('');
@@ -91,6 +92,7 @@ export function SendMoneyModal({ visible, ownTeam, onClose, onSuccess }: Props) 
     setSubmitting(true);
     setError(null);
     const { error: rpcError } = await supabase.rpc('transfer_to_team', {
+      p_project_id: projectId,
       p_to_team_id: ownTeam.id,
       p_amount: numericAmount,
     });
@@ -113,6 +115,7 @@ export function SendMoneyModal({ visible, ownTeam, onClose, onSuccess }: Props) 
     setSubmitting(true);
     setError(null);
     const { error: rpcError } = await supabase.rpc('transfer_to_participant', {
+      p_project_id: projectId,
       p_to_profile_id: recipient.id,
       p_amount: numericAmount,
     });

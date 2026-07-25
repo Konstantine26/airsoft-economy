@@ -12,26 +12,37 @@ import { supabase } from '../lib/supabase';
 import type { Team } from '../lib/database.types';
 import { TransferModal } from './TransferModal';
 
-export function TeamsScreen() {
-  const [teams, setTeams] = useState<Team[]>([]);
+type TeamWithBalance = Team & { balance: number };
+
+type Props = {
+  projectId: string | null;
+};
+
+export function TeamsScreen({ projectId }: Props) {
+  const [teams, setTeams] = useState<TeamWithBalance[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [transferOpen, setTransferOpen] = useState(false);
 
   const loadTeams = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('teams')
-      .select('*')
-      .order('name', { ascending: true });
-
-    if (error) {
-      setError(error.message);
-    } else {
-      setError(null);
-      setTeams(data ?? []);
+    if (!projectId) {
+      setTeams([]);
+      return;
     }
-  }, []);
+    const [teamsRes, balancesRes] = await Promise.all([
+      supabase.from('teams').select('*').order('name', { ascending: true }),
+      supabase.from('project_team_balances').select('*').eq('project_id', projectId),
+    ]);
+
+    if (teamsRes.error) {
+      setError(teamsRes.error.message);
+      return;
+    }
+    setError(null);
+    const balanceMap = new Map((balancesRes.data ?? []).map((row) => [row.team_id, row.balance]));
+    setTeams((teamsRes.data ?? []).map((t) => ({ ...t, balance: balanceMap.get(t.id) ?? 0 })));
+  }, [projectId]);
 
   useEffect(() => {
     loadTeams().finally(() => setLoading(false));
@@ -52,6 +63,14 @@ export function TeamsScreen() {
     return (
       <View style={styles.center}>
         <ActivityIndicator />
+      </View>
+    );
+  }
+
+  if (!projectId) {
+    return (
+      <View style={styles.center}>
+        <Text style={styles.empty}>Нет проекта с включённой экономикой</Text>
       </View>
     );
   }
@@ -86,6 +105,7 @@ export function TeamsScreen() {
 
       <TransferModal
         visible={transferOpen}
+        projectId={projectId}
         teams={teams}
         onClose={() => setTransferOpen(false)}
         onSuccess={onTransferDone}
