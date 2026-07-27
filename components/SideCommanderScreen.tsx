@@ -2,8 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { GameSide } from '../lib/database.types';
+import { Avatar } from './Avatar';
 
-type ParticipantEntry = { full_name: string; status: 'pending' | 'confirmed' };
+type ParticipantEntry = { full_name: string; avatar_url: string | null; status: 'pending' | 'confirmed' };
 type TeamWithRoster = {
   team_id: string;
   team_name: string;
@@ -30,7 +31,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
       supabase.from('game_team_sides').select('team_id, side_id, team:teams(id, name)').eq('game_id', side.game_id),
       supabase
         .from('game_participants')
-        .select('team_id, side_id, status, profile:profiles(full_name)')
+        .select('team_id, side_id, status, profile:profiles(full_name, avatar_url)')
         .eq('game_id', side.game_id),
     ]);
 
@@ -51,6 +52,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
       if (effectiveSideId !== side.id) continue;
       const entry: ParticipantEntry = {
         full_name: row.profile?.full_name || '(без имени)',
+        avatar_url: row.profile?.avatar_url ?? null,
         status: row.status,
       };
       if (!byTeam.has(row.team_id)) byTeam.set(row.team_id, []);
@@ -109,9 +111,12 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
               <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
             ) : (
               team.participants.map((p, idx) => (
-                <Text key={idx} style={styles.participant}>
-                  {p.full_name} {p.status === 'pending' ? '· на подтверждении' : ''}
-                </Text>
+                <View key={idx} style={styles.participantRow}>
+                  <Avatar uri={p.avatar_url} name={p.full_name} size={26} />
+                  <Text style={styles.participant}>
+                    {p.full_name} {p.status === 'pending' ? '· на подтверждении' : ''}
+                  </Text>
+                </View>
               ))
             )}
           </View>
@@ -158,10 +163,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginBottom: 6,
   },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
   participant: {
     fontSize: 14,
     color: '#333',
-    paddingVertical: 2,
   },
   label: {
     fontSize: 13,

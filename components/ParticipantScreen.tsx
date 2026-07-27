@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, Polygon, Project, Team, TeamMember } from '../lib/database.types';
+import { Avatar } from './Avatar';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 
 type Props = {
@@ -9,11 +10,13 @@ type Props = {
   activeProjectId: string | null;
 };
 
+type RosterEntry = { full_name: string; avatar_url: string | null };
+
 export function ParticipantScreen({ ownMembership, activeProjectId }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [games, setGames] = useState<(Game & { polygon: Polygon | null })[]>([]);
-  const [roster, setRoster] = useState<string[]>([]);
+  const [roster, setRoster] = useState<RosterEntry[]>([]);
   const [teamBalance, setTeamBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -27,9 +30,14 @@ export function ParticipantScreen({ ownMembership, activeProjectId }: Props) {
     if (!ownMembership) return;
     const { data } = await supabase
       .from('team_members')
-      .select('profile:profiles(full_name)')
+      .select('profile:profiles(full_name, avatar_url)')
       .eq('team_id', ownMembership.team_id);
-    setRoster((data ?? []).map((row: any) => row.profile?.full_name || '(без имени)'));
+    setRoster(
+      (data ?? []).map((row: any) => ({
+        full_name: row.profile?.full_name || '(без имени)',
+        avatar_url: row.profile?.avatar_url ?? null,
+      }))
+    );
   }, [ownMembership]);
 
   const loadTeamBalance = useCallback(async () => {
@@ -106,10 +114,11 @@ export function ParticipantScreen({ ownMembership, activeProjectId }: Props) {
           <Text style={styles.label}>
             {teamBalance !== null ? `Баланс: ${teamBalance.toFixed(2)} ₽` : 'Нет проекта с включённой экономикой'}
           </Text>
-          {roster.map((name, idx) => (
-            <Text key={idx} style={styles.participant}>
-              {name}
-            </Text>
+          {roster.map((entry, idx) => (
+            <View key={idx} style={styles.participantRow}>
+              <Avatar uri={entry.avatar_url} name={entry.full_name} size={28} />
+              <Text style={styles.participant}>{entry.full_name}</Text>
+            </View>
           ))}
         </View>
       ) : (
@@ -177,9 +186,14 @@ const styles = StyleSheet.create({
     color: '#666',
     marginTop: 4,
   },
+  participantRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 2,
+  },
   participant: {
     fontSize: 14,
     color: '#333',
-    paddingVertical: 2,
   },
 });

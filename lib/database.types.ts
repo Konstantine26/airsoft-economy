@@ -6,6 +6,7 @@ export type Profile = {
   role: Role;
   must_change_password: boolean;
   participant_number: number;
+  avatar_url: string | null;
   created_at: string;
 };
 

@@ -20,6 +20,7 @@ import type {
   Project,
   Team,
 } from '../lib/database.types';
+import { Avatar } from './Avatar';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 
 const TYPE_LABEL: Record<PolygonType, string> = {
@@ -31,7 +32,12 @@ const TYPE_LABEL: Record<PolygonType, string> = {
 };
 
 type GameWithRelations = Game & { project: Project | null; polygon: Polygon | null };
-type ParticipantRow = GameParticipant & { team_name: string; full_name: string; effective_side_id: string | null };
+type ParticipantRow = GameParticipant & {
+  team_name: string;
+  full_name: string;
+  avatar_url: string | null;
+  effective_side_id: string | null;
+};
 
 export function OrganizerScreen() {
   const { profile } = useAuth();
@@ -126,7 +132,7 @@ export function OrganizerScreen() {
       supabase.from('game_team_sides').select('team_id, side_id').eq('game_id', game.id),
       supabase
         .from('game_participants')
-        .select('*, team:teams(name), profile:profiles(full_name)')
+        .select('*, team:teams(name), profile:profiles(full_name, avatar_url)')
         .eq('game_id', game.id),
     ]);
     setSides(sidesRes.data ?? []);
@@ -140,6 +146,7 @@ export function OrganizerScreen() {
       ...row,
       team_name: row.team?.name ?? '',
       full_name: row.profile?.full_name || '(без имени)',
+      avatar_url: row.profile?.avatar_url ?? null,
       effective_side_id: row.side_id ?? teamSideMap.get(row.team_id) ?? null,
     }));
     setParticipants(rows);
@@ -448,6 +455,7 @@ function ParticipantRowView({
   return (
     <View style={styles.participantRow}>
       <View style={styles.row}>
+        <Avatar uri={row.avatar_url} name={row.full_name} size={28} />
         <Text style={styles.participantName}>
           {row.full_name} · {row.team_name}
         </Text>

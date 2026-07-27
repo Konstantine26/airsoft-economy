@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { supabase } from '../lib/supabase';
 import type { Profile, Role } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
+import { Avatar } from './Avatar';
 
 const ROLES: Role[] = ['member', 'admin'];
 const ROLE_LABEL: Record<Role, string> = {
@@ -83,9 +84,12 @@ export function AdminUsersTab({ activeProjectId }: Props) {
 
       {profiles.map((p) => (
         <View key={p.id} style={styles.card}>
-          <Text style={styles.cardTitle}>
-            {p.full_name || '(без имени)'} · №{p.participant_number}
-          </Text>
+          <View style={styles.identityRow}>
+            <Avatar uri={p.avatar_url} name={p.full_name} size={36} />
+            <Text style={styles.cardTitle}>
+              {p.full_name || '(без имени)'} · №{p.participant_number}
+            </Text>
+          </View>
           {activeProjectId ? (
             <Text style={styles.label}>Баланс в проекте: {(balances.get(p.id) ?? 0).toFixed(2)} ₽</Text>
           ) : null}
@@ -135,6 +139,11 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  identityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
     marginBottom: 8,
   },
   chips: {

@@ -1,8 +1,10 @@
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { Avatar } from './Avatar';
 import { AdminScreen } from './AdminScreen';
 import { OrganizerScreen } from './OrganizerScreen';
 import { TeamCommanderScreen } from './TeamCommanderScreen';
@@ -14,12 +16,57 @@ import type { Project } from '../lib/database.types';
 
 type TabKey = 'home' | 'wallet' | 'economy' | 'team' | 'side' | 'organizer' | 'admin';
 
+const AVATAR_BUCKET = 'avatars';
+
 export function Dashboard() {
-  const { profile, signOut } = useAuth();
+  const { profile, session, signOut, refreshProfile } = useAuth();
   const capabilities = useCapabilities();
   const [tab, setTab] = useState<TabKey>('home');
   const [economyProjects, setEconomyProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const changeAvatar = useCallback(async () => {
+    if (!session) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Нет доступа к галерее');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+
+    setUploadingAvatar(true);
+    try {
+      const asset = result.assets[0];
+      const arrayBuffer = await fetch(asset.uri).then((res) => res.arrayBuffer());
+      const path = `${session.user.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from(AVATAR_BUCKET)
+        .upload(path, arrayBuffer, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const publicUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+      const avatarUrl = `${publicUrl}?v=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', session.user.id);
+      if (updateError) throw updateError;
+
+      await refreshProfile();
+    } catch (e) {
+      Alert.alert('Не удалось загрузить фото', e instanceof Error ? e.message : undefined);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }, [session, refreshProfile]);
 
   const loadEconomyProjects = useCallback(async () => {
     const { data } = await supabase
@@ -59,7 +106,18 @@ export function Dashboard() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerName}>{profile.full_name || 'Без имени'}</Text>
+        <View style={styles.headerIdentity}>
+          <Pressable onPress={changeAvatar} disabled={uploadingAvatar}>
+            {uploadingAvatar ? (
+              <View style={[styles.avatarLoading, { width: 36, height: 36, borderRadius: 18 }]}>
+                <ActivityIndicator size="small" />
+              </View>
+            ) : (
+              <Avatar uri={profile.avatar_url} name={profile.full_name} size={36} />
+            )}
+          </Pressable>
+          <Text style={styles.headerName}>{profile.full_name || 'Без имени'}</Text>
+        </View>
         <Pressable onPress={signOut}>
           <Text style={styles.signOut}>Выйти</Text>
         </Pressable>
@@ -137,9 +195,19 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: '#ddd',
   },
+  headerIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
   headerName: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  avatarLoading: {
+    backgroundColor: '#eee',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   signOut: {
     color: '#c00',

@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
+import { Avatar } from './Avatar';
 
-type RosterRow = { id: string; profile_id: string; full_name: string };
+type RosterRow = { id: string; profile_id: string; full_name: string; avatar_url: string | null };
 type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
 
 type Props = {
@@ -35,12 +36,13 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   const loadRoster = useCallback(async (team: Team) => {
     const { data } = await supabase
       .from('team_members')
-      .select('id, profile_id, profile:profiles(full_name)')
+      .select('id, profile_id, profile:profiles(full_name, avatar_url)')
       .eq('team_id', team.id);
     const rows: RosterRow[] = (data ?? []).map((row: any) => ({
       id: row.id,
       profile_id: row.profile_id,
       full_name: row.profile?.full_name || '(без имени)',
+      avatar_url: row.profile?.avatar_url ?? null,
     }));
     setRoster(rows);
 
@@ -235,7 +237,10 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
                 style={styles.rosterRow}
                 onPress={() => toggleParticipant(row.profile_id)}
               >
-                <Text style={styles.rosterName}>{row.full_name}</Text>
+                <View style={styles.rosterIdentity}>
+                  <Avatar uri={row.avatar_url} name={row.full_name} size={28} />
+                  <Text style={styles.rosterName}>{row.full_name}</Text>
+                </View>
                 <Text style={status ? styles.checkOn : styles.checkOff}>
                   {status === 'confirmed'
                     ? 'Подтверждён'
@@ -283,7 +288,10 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       {roster.map((row) => (
         <View key={row.id} style={styles.rosterCard}>
           <View style={styles.rosterRow}>
-            <Text style={styles.rosterName}>{row.full_name}</Text>
+            <View style={styles.rosterIdentity}>
+              <Avatar uri={row.avatar_url} name={row.full_name} size={28} />
+              <Text style={styles.rosterName}>{row.full_name}</Text>
+            </View>
             <Pressable onPress={() => removeMember(row)}>
               <Text style={styles.removeText}>Убрать</Text>
             </Pressable>
@@ -297,7 +305,10 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       <Text style={styles.sectionTitle}>Добавить в команду</Text>
       {availableProfiles.map((p) => (
         <Pressable key={p.id} style={styles.rosterRow} onPress={() => addMember(p)}>
-          <Text style={styles.rosterName}>{p.full_name || '(без имени)'}</Text>
+          <View style={styles.rosterIdentity}>
+            <Avatar uri={p.avatar_url} name={p.full_name} size={28} />
+            <Text style={styles.rosterName}>{p.full_name || '(без имени)'}</Text>
+          </View>
           <Text style={styles.addText}>+ Добавить</Text>
         </Pressable>
       ))}
@@ -424,6 +435,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingVertical: 4,
+  },
+  rosterIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
   distributeRow: {
     flexDirection: 'row',
