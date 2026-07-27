@@ -1,19 +1,15 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Polygon, PolygonMap, PolygonType } from '../lib/database.types';
 import { ImageLightbox } from './ImageLightbox';
+import { Card } from './Card';
+import { Chip } from './Chip';
+import { Button } from './Button';
+import { TextField } from './TextField';
+import { colors, font, radii, spacing } from '../lib/theme';
 
 const BUCKET = 'polygon-maps';
 
@@ -224,7 +220,7 @@ export function PolygonsScreen() {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -241,62 +237,27 @@ export function PolygonsScreen() {
         {editing ? (
           <>
             <Text style={styles.sectionTitle}>Редактирование полигона</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Название"
-              value={editName}
-              onChangeText={setEditName}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Страна"
-              value={editCountry}
-              onChangeText={setEditCountry}
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Регион"
-              value={editRegion}
-              onChangeText={setEditRegion}
-            />
-            <TextInput
+            <TextField style={styles.input} placeholder="Название" value={editName} onChangeText={setEditName} />
+            <TextField style={styles.input} placeholder="Страна" value={editCountry} onChangeText={setEditCountry} />
+            <TextField style={styles.input} placeholder="Регион" value={editRegion} onChangeText={setEditRegion} />
+            <TextField
               style={styles.input}
               placeholder="Населённый пункт"
               value={editCity}
               onChangeText={setEditCity}
             />
-            <TextInput
-              style={styles.input}
-              placeholder="Адрес"
-              value={editAddress}
-              onChangeText={setEditAddress}
-            />
+            <TextField style={styles.input} placeholder="Адрес" value={editAddress} onChangeText={setEditAddress} />
 
             <Text style={styles.label}>Тип полигона</Text>
             <View style={styles.chips}>
               {TYPES.map((t) => (
-                <Pressable
-                  key={t}
-                  style={[styles.chip, editType === t && styles.chipSelected]}
-                  onPress={() => setEditType(t)}
-                >
-                  <Text style={editType === t ? styles.chipTextSelected : styles.chipText}>
-                    {TYPE_LABEL[t]}
-                  </Text>
-                </Pressable>
+                <Chip key={t} label={TYPE_LABEL[t]} selected={editType === t} onPress={() => setEditType(t)} />
               ))}
             </View>
 
             <View style={styles.row}>
-              <Pressable style={[styles.addButton, styles.flexButton]} onPress={saveEdit}>
-                <Text style={styles.addButtonText}>Сохранить</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.secondaryButton, styles.flexButton]}
-                onPress={() => setEditing(false)}
-              >
-                <Text style={styles.secondaryButtonText}>Отмена</Text>
-              </Pressable>
+              <Button title="Сохранить" onPress={saveEdit} style={styles.flexButton} />
+              <Button title="Отмена" variant="secondary" onPress={() => setEditing(false)} style={styles.flexButton} />
             </View>
           </>
         ) : (
@@ -335,25 +296,21 @@ export function PolygonsScreen() {
         </View>
 
         <View style={styles.row}>
-          <Pressable
-            style={[styles.addButton, styles.flexButton]}
+          <Button
+            title={uploading ? 'Загрузка…' : 'Добавить изображение'}
             onPress={() => pickImages(selected)}
             disabled={uploading}
-          >
-            <Text style={styles.addButtonText}>{uploading ? 'Загрузка…' : 'Добавить изображение'}</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.addButton, styles.flexButton]}
+            style={styles.flexButton}
+          />
+          <Button
+            title={uploading ? 'Загрузка…' : 'Добавить файл'}
             onPress={() => pickFiles(selected)}
             disabled={uploading}
-          >
-            <Text style={styles.addButtonText}>{uploading ? 'Загрузка…' : 'Добавить файл'}</Text>
-          </Pressable>
+            style={styles.flexButton}
+          />
         </View>
 
-        <Pressable style={styles.dangerButton} onPress={() => deletePolygon(selected)}>
-          <Text style={styles.dangerButtonText}>Удалить полигон</Text>
-        </Pressable>
+        <Button title="Удалить полигон" variant="danger" onPress={() => deletePolygon(selected)} style={styles.dangerSpacing} />
 
         <ImageLightbox uri={lightboxUri} onClose={() => setLightboxUri(null)} />
       </ScrollView>
@@ -366,50 +323,40 @@ export function PolygonsScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      {polygons.map((p) => (
-        <Pressable
-          key={p.id}
-          style={styles.card}
-          onPress={() => {
-            setSelected(p);
-            setEditing(false);
-            loadMaps(p);
-          }}
-        >
-          <Text style={styles.cardTitle}>{p.name}</Text>
-          <Text style={styles.label}>{locationLine(p)}</Text>
-          <Text style={styles.label}>Тип: {TYPE_LABEL[p.type]}</Text>
-        </Pressable>
-      ))}
-
-      <Text style={styles.sectionTitle}>Новый полигон</Text>
-      <TextInput style={styles.input} placeholder="Название" value={name} onChangeText={setName} />
-      <TextInput style={styles.input} placeholder="Страна" value={country} onChangeText={setCountry} />
-      <TextInput style={styles.input} placeholder="Регион" value={region} onChangeText={setRegion} />
-      <TextInput
-        style={styles.input}
-        placeholder="Населённый пункт"
-        value={city}
-        onChangeText={setCity}
-      />
-      <TextInput style={styles.input} placeholder="Адрес" value={address} onChangeText={setAddress} />
-
-      <Text style={styles.label}>Тип полигона</Text>
-      <View style={styles.chips}>
-        {TYPES.map((t) => (
+      <View style={styles.list}>
+        {polygons.map((p) => (
           <Pressable
-            key={t}
-            style={[styles.chip, type === t && styles.chipSelected]}
-            onPress={() => setType(t)}
+            key={p.id}
+            onPress={() => {
+              setSelected(p);
+              setEditing(false);
+              loadMaps(p);
+            }}
           >
-            <Text style={type === t ? styles.chipTextSelected : styles.chipText}>{TYPE_LABEL[t]}</Text>
+            <Card>
+              <Text style={styles.cardTitle}>{p.name}</Text>
+              <Text style={styles.label}>{locationLine(p)}</Text>
+              <Text style={styles.label}>Тип: {TYPE_LABEL[p.type]}</Text>
+            </Card>
           </Pressable>
         ))}
       </View>
 
-      <Pressable style={styles.addButton} onPress={createPolygon}>
-        <Text style={styles.addButtonText}>Добавить полигон</Text>
-      </Pressable>
+      <Text style={styles.sectionTitle}>Новый полигон</Text>
+      <TextField style={styles.input} placeholder="Название" value={name} onChangeText={setName} />
+      <TextField style={styles.input} placeholder="Страна" value={country} onChangeText={setCountry} />
+      <TextField style={styles.input} placeholder="Регион" value={region} onChangeText={setRegion} />
+      <TextField style={styles.input} placeholder="Населённый пункт" value={city} onChangeText={setCity} />
+      <TextField style={styles.input} placeholder="Адрес" value={address} onChangeText={setAddress} />
+
+      <Text style={styles.label}>Тип полигона</Text>
+      <View style={styles.chips}>
+        {TYPES.map((t) => (
+          <Chip key={t} label={TYPE_LABEL[t]} selected={type === t} onPress={() => setType(t)} />
+        ))}
+      </View>
+
+      <Button title="Добавить полигон" onPress={createPolygon} />
     </ScrollView>
   );
 }
@@ -421,50 +368,53 @@ function locationLine(p: Polygon) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
   back: {
-    color: '#666',
-    marginBottom: 8,
+    fontFamily: font.body,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: font.heading,
+    fontSize: 19,
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: font.body,
+    fontSize: 13,
+    color: colors.textMuted,
     marginTop: 4,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
+    fontFamily: font.heading,
+    fontSize: 16,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm + 2,
   },
-  card: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+  list: {
+    gap: spacing.sm,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
   },
   label: {
-    fontSize: 13,
-    color: '#666',
+    fontFamily: font.body,
+    fontSize: 12,
+    color: colors.textMuted,
     marginTop: 4,
   },
   chips: {
@@ -472,95 +422,39 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginTop: 6,
-    marginBottom: 10,
-  },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  chipSelected: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  chipText: {
-    color: '#111',
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: '#fff',
-    fontSize: 13,
+    marginBottom: spacing.sm + 2,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 15,
-    marginBottom: 10,
+    marginBottom: spacing.sm + 2,
   },
   row: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 16,
+    marginTop: spacing.lg,
   },
   flexButton: {
     flex: 1,
   },
-  addButton: {
-    backgroundColor: '#111',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  addButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-  },
-  dangerButton: {
-    borderWidth: 1,
-    borderColor: '#c00',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  dangerButtonText: {
-    color: '#c00',
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  secondaryButtonText: {
-    color: '#111',
-    fontWeight: '600',
+  dangerSpacing: {
+    marginTop: spacing.md,
   },
   editLink: {
-    color: '#111',
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    color: colors.accent,
     fontSize: 13,
-    marginTop: 8,
-    marginBottom: 8,
+    marginTop: spacing.sm,
+    marginBottom: spacing.sm,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   mapsGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   mapCard: {
     width: 110,
@@ -568,8 +462,8 @@ const styles = StyleSheet.create({
   mapImage: {
     width: 110,
     height: 110,
-    borderRadius: 8,
-    backgroundColor: '#f2f2f2',
+    borderRadius: radii.sm,
+    backgroundColor: colors.card,
   },
   mapFilePlaceholder: {
     alignItems: 'center',
@@ -579,13 +473,15 @@ const styles = StyleSheet.create({
     fontSize: 32,
   },
   mapFileName: {
+    fontFamily: font.body,
     fontSize: 11,
-    color: '#666',
+    color: colors.textMuted,
     marginTop: 4,
   },
   deleteLink: {
+    fontFamily: font.body,
     fontSize: 11,
-    color: '#c00',
+    color: colors.danger,
     marginTop: 2,
   },
 });

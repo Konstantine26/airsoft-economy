@@ -1,13 +1,8 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { TextField } from './TextField';
+import { colors, font, radii, spacing } from '../lib/theme';
 
 export function AuthScreen() {
   const { signIn, signUp } = useAuth();
@@ -47,13 +42,14 @@ export function AuthScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.glyph}>
+        <Text style={styles.glyphIcon}>⚔️</Text>
+      </View>
       <Text style={styles.title}>Airsoft Economy</Text>
-      <Text style={styles.subtitle}>
-        {mode === 'signIn' ? 'Вход' : 'Регистрация'}
-      </Text>
+      <Text style={styles.subtitle}>{mode === 'signIn' ? 'Вход' : 'Регистрация'}</Text>
 
       {mode === 'signUp' ? (
-        <TextInput
+        <TextField
           style={styles.input}
           placeholder="Имя"
           value={fullName}
@@ -62,7 +58,7 @@ export function AuthScreen() {
         />
       ) : null}
 
-      <TextInput
+      <TextField
         style={styles.input}
         placeholder="Email"
         value={email}
@@ -70,7 +66,7 @@ export function AuthScreen() {
         autoCapitalize="none"
         keyboardType="email-address"
       />
-      <TextInput
+      <TextField
         style={styles.input}
         placeholder="Пароль"
         value={password}
@@ -83,7 +79,7 @@ export function AuthScreen() {
 
       <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
         {submitting ? (
-          <ActivityIndicator color="#fff" />
+          <ActivityIndicator color={colors.onAccent} />
         ) : (
           <Text style={styles.submitButtonText}>
             {mode === 'signIn' ? 'Войти' : 'Зарегистрироваться'}
@@ -110,54 +106,71 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#fff',
+    paddingHorizontal: 26,
+    backgroundColor: colors.bg,
+  },
+  glyph: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  glyphIcon: {
+    fontSize: 24,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
+    fontFamily: font.heading,
+    fontSize: 24,
+    letterSpacing: 0.4,
+    color: colors.text,
     textAlign: 'center',
-    marginBottom: 4,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666',
+    fontFamily: font.body,
+    fontSize: 13,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 24,
+    marginTop: 6,
+    marginBottom: spacing.xxl,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 12,
+    marginBottom: spacing.sm + 2,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   info: {
-    color: '#0a7d2c',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.success,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: '#111',
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: 13,
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: font.heading,
+    color: colors.onAccent,
+    fontSize: 15,
   },
   switchText: {
+    fontFamily: font.body,
     textAlign: 'center',
-    color: '#333',
+    color: colors.accent,
+    fontSize: 13,
   },
 });

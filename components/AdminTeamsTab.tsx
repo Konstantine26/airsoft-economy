@@ -1,16 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Profile, Team } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
+import { Card } from './Card';
+import { Chip } from './Chip';
+import { Button } from './Button';
+import { TextField } from './TextField';
+import { colors, font, spacing } from '../lib/theme';
 
 type Props = {
   activeProjectId: string | null;
@@ -113,7 +110,7 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -128,79 +125,62 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
         </Text>
       ) : null}
 
-      {teams.map((team) => (
-        <View key={team.id} style={styles.card}>
-          {editingId === team.id ? (
-            <View style={styles.row}>
-              <TextInput
-                style={[styles.input, styles.flexInput]}
-                value={editingName}
-                onChangeText={setEditingName}
-              />
-              <Pressable style={styles.smallButton} onPress={() => saveRename(team)}>
-                <Text style={styles.smallButtonText}>Сохранить</Text>
-              </Pressable>
-              <Pressable onPress={() => setEditingId(null)}>
-                <Text style={styles.cancelText}>Отмена</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <View style={styles.row}>
-              <Text style={styles.cardTitle}>{team.name}</Text>
-              <Pressable onPress={() => startRename(team)}>
-                <Text style={styles.editText}>Переименовать</Text>
-              </Pressable>
-              <Pressable onPress={() => deleteTeam(team)}>
-                <Text style={styles.deleteText}>Удалить</Text>
-              </Pressable>
-            </View>
-          )}
+      <View style={styles.list}>
+        {teams.map((team) => (
+          <Card key={team.id}>
+            {editingId === team.id ? (
+              <View style={styles.row}>
+                <TextField style={styles.flexInput} value={editingName} onChangeText={setEditingName} />
+                <Pressable onPress={() => saveRename(team)}>
+                  <Text style={styles.saveText}>Сохранить</Text>
+                </Pressable>
+                <Pressable onPress={() => setEditingId(null)}>
+                  <Text style={styles.cancelText}>Отмена</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.row}>
+                <Text style={styles.cardTitle}>{team.name}</Text>
+                <Pressable onPress={() => startRename(team)}>
+                  <Text style={styles.editText}>Переименовать</Text>
+                </Pressable>
+                <Pressable onPress={() => deleteTeam(team)}>
+                  <Text style={styles.deleteText}>Удалить</Text>
+                </Pressable>
+              </View>
+            )}
 
-          {activeProjectId ? (
-            <>
-              <Text style={styles.label}>Баланс в проекте: {(balances.get(team.id) ?? 0).toFixed(2)} ₽</Text>
-              <AmountForm
-                placeholder="Пополнить баланс команды"
-                buttonLabel="Пополнить"
-                onSubmit={(amount) => deposit(team.id, amount)}
-              />
-            </>
-          ) : null}
+            {activeProjectId ? (
+              <>
+                <Text style={styles.label}>Баланс в проекте: {(balances.get(team.id) ?? 0).toFixed(2)} ₽</Text>
+                <AmountForm
+                  placeholder="Пополнить баланс команды"
+                  buttonLabel="Пополнить"
+                  onSubmit={(amount) => deposit(team.id, amount)}
+                />
+              </>
+            ) : null}
 
-          <Text style={styles.label}>Командир</Text>
-          <View style={styles.chips}>
-            <Pressable
-              style={[styles.chip, !team.commander_id && styles.chipSelected]}
-              onPress={() => setCommander(team.id, null)}
-            >
-              <Text style={!team.commander_id ? styles.chipTextSelected : styles.chipText}>—</Text>
-            </Pressable>
-            {profiles.map((p) => (
-              <Pressable
-                key={p.id}
-                style={[styles.chip, team.commander_id === p.id && styles.chipSelected]}
-                onPress={() => setCommander(team.id, p.id)}
-              >
-                <Text style={team.commander_id === p.id ? styles.chipTextSelected : styles.chipText}>
-                  {p.full_name || '(без имени)'}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-      ))}
+            <Text style={styles.label}>Командир</Text>
+            <View style={styles.chips}>
+              <Chip label="—" selected={!team.commander_id} onPress={() => setCommander(team.id, null)} />
+              {profiles.map((p) => (
+                <Chip
+                  key={p.id}
+                  label={p.full_name || '(без имени)'}
+                  selected={team.commander_id === p.id}
+                  onPress={() => setCommander(team.id, p.id)}
+                />
+              ))}
+            </View>
+          </Card>
+        ))}
+      </View>
 
       <Text style={styles.sectionTitle}>Новая команда</Text>
       <View style={styles.row}>
-        <TextInput
-          style={[styles.input, styles.flexInput]}
-          placeholder="Название команды"
-          value={newTeamName}
-          onChangeText={setNewTeamName}
-        />
-        <Pressable style={styles.smallButton} onPress={createTeam}>
-          <Text style={styles.smallButtonText}>Добавить</Text>
-        </Pressable>
+        <TextField style={styles.flexInput} placeholder="Название команды" value={newTeamName} onChangeText={setNewTeamName} />
+        <Button title="Добавить" onPress={createTeam} style={styles.addButton} />
       </View>
     </ScrollView>
   );
@@ -209,23 +189,20 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
-  card: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+  list: {
+    gap: spacing.sm,
   },
   row: {
     flexDirection: 'row',
@@ -233,15 +210,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
     flex: 1,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
+    fontFamily: font.heading,
+    fontSize: 17,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm,
   },
   chips: {
     flexDirection: 'row',
@@ -249,67 +228,43 @@ const styles = StyleSheet.create({
     gap: 8,
     marginTop: 4,
   },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  chipSelected: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  chipText: {
-    color: '#111',
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: '#fff',
-    fontSize: 13,
-  },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 10,
+    fontFamily: font.body,
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: spacing.sm + 2,
     marginBottom: 4,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
   },
   flexInput: {
     flex: 1,
   },
-  smallButton: {
-    backgroundColor: '#111',
-    borderRadius: 8,
+  addButton: {
     paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  smallButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
+    paddingVertical: 11,
   },
   editText: {
-    color: '#111',
+    fontFamily: font.body,
+    color: colors.accent,
+    fontSize: 13,
+  },
+  saveText: {
+    fontFamily: font.bodySemiBold,
+    color: colors.accent,
     fontSize: 13,
   },
   deleteText: {
-    color: '#c00',
+    fontFamily: font.body,
+    color: colors.danger,
     fontSize: 13,
   },
   cancelText: {
-    color: '#666',
+    fontFamily: font.body,
+    color: colors.textMuted,
     fontSize: 13,
   },
 });

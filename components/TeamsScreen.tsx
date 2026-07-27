@@ -1,16 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Pressable,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Team } from '../lib/database.types';
 import { TransferModal } from './TransferModal';
+import { Button } from './Button';
+import { colors, font, radii, spacing } from '../lib/theme';
 
 type TeamWithBalance = Team & { balance: number };
 
@@ -23,6 +17,7 @@ export function TeamsScreen({ projectId }: Props) {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [transferOpen, setTransferOpen] = useState(false);
 
   const loadTeams = useCallback(async () => {
@@ -56,13 +51,18 @@ export function TeamsScreen({ projectId }: Props) {
 
   const onTransferDone = useCallback(async () => {
     setTransferOpen(false);
+    setSelectedIds([]);
     await loadTeams();
   }, [loadTeams]);
+
+  const toggleTeamSelect = (id: string) => {
+    setSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id].slice(-2)));
+  };
 
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -75,6 +75,9 @@ export function TeamsScreen({ projectId }: Props) {
     );
   }
 
+  const fromTeam = teams.find((t) => t.id === selectedIds[0]) ?? null;
+  const toTeam = teams.find((t) => t.id === selectedIds[1]) ?? null;
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Команды</Text>
@@ -84,32 +87,41 @@ export function TeamsScreen({ projectId }: Props) {
       <FlatList
         data={teams}
         keyExtractor={(team) => team.id}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-        contentContainerStyle={teams.length === 0 && styles.emptyList}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} />}
+        contentContainerStyle={teams.length === 0 ? styles.emptyList : styles.list}
         ListEmptyComponent={<Text style={styles.empty}>Команд пока нет</Text>}
-        renderItem={({ item }) => (
-          <View style={styles.row}>
-            <Text style={styles.teamName}>{item.name}</Text>
-            <Text style={styles.balance}>{item.balance.toFixed(2)} ₽</Text>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          const selected = selectedIds.includes(item.id);
+          return (
+            <Pressable
+              style={[styles.row, selected ? styles.rowSelected : styles.rowUnselected]}
+              onPress={() => toggleTeamSelect(item.id)}
+            >
+              <Text style={styles.teamName}>{item.name}</Text>
+              <Text style={styles.balance}>{item.balance.toFixed(2)} ₽</Text>
+            </Pressable>
+          );
+        }}
       />
 
-      <Pressable
-        style={styles.transferButton}
+      <Button
+        title="Перевести между командами"
         onPress={() => setTransferOpen(true)}
-        disabled={teams.length < 2}
-      >
-        <Text style={styles.transferButtonText}>Перевести</Text>
-      </Pressable>
-
-      <TransferModal
-        visible={transferOpen}
-        projectId={projectId}
-        teams={teams}
-        onClose={() => setTransferOpen(false)}
-        onSuccess={onTransferDone}
+        disabled={!fromTeam || !toTeam}
+        style={styles.transferButton}
       />
+      <Text style={styles.hint}>Выберите две команды, чтобы выполнить перевод</Text>
+
+      {fromTeam && toTeam ? (
+        <TransferModal
+          visible={transferOpen}
+          projectId={projectId}
+          fromTeam={fromTeam}
+          toTeam={toTeam}
+          onClose={() => setTransferOpen(false)}
+          onSuccess={onTransferDone}
+        />
+      ) : null}
     </View>
   );
 }
@@ -117,57 +129,77 @@ export function TeamsScreen({ projectId }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 60,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
+    paddingTop: 16,
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.bg,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
   title: {
-    fontSize: 28,
-    fontWeight: '700',
-    marginBottom: 16,
+    fontFamily: font.heading,
+    fontSize: 19,
+    color: colors.text,
+    marginBottom: spacing.md + 2,
+  },
+  list: {
+    gap: spacing.sm,
+    paddingBottom: spacing.md,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    marginBottom: spacing.sm,
+  },
+  rowUnselected: {
+    backgroundColor: colors.card,
+    borderColor: colors.cardBorder,
+  },
+  rowSelected: {
+    backgroundColor: colors.accentSoft,
+    borderColor: colors.accentSoftBorder,
   },
   teamName: {
-    fontSize: 17,
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
   },
   balance: {
-    fontSize: 17,
-    fontWeight: '600',
+    fontFamily: font.heading,
+    fontSize: 15,
+    color: colors.text,
   },
   empty: {
+    fontFamily: font.body,
     textAlign: 'center',
-    color: '#888',
+    color: colors.textMuted,
     marginTop: 40,
   },
   emptyList: {
     flexGrow: 1,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   transferButton: {
-    backgroundColor: '#111',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginVertical: 16,
+    marginTop: spacing.sm,
   },
-  transferButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  hint: {
+    fontFamily: font.body,
+    fontSize: 11.5,
+    color: colors.textDim,
+    textAlign: 'center',
+    marginTop: spacing.sm,
+    marginBottom: spacing.lg,
   },
 });

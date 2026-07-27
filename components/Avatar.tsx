@@ -1,4 +1,5 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
+import { colors, font } from '../lib/theme';
 
 type Props = {
   uri?: string | null;
@@ -29,15 +30,15 @@ export function Avatar({ uri, name, size = 40 }: Props) {
 
 const styles = StyleSheet.create({
   image: {
-    backgroundColor: '#f2f2f2',
+    backgroundColor: colors.card,
   },
   fallback: {
-    backgroundColor: '#ddd',
+    backgroundColor: colors.white14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   fallbackText: {
-    color: '#555',
-    fontWeight: '600',
+    color: colors.text,
+    fontFamily: font.bodyBold,
   },
 });

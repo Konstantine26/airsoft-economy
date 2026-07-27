@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase';
 import { encodeParticipantCode } from '../lib/participantCode';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { SendMoneyModal } from './SendMoneyModal';
+import { Button } from './Button';
+import { Card } from './Card';
+import { colors, font, spacing } from '../lib/theme';
 import type { PersonalTransaction, PersonalTransactionKind } from '../lib/database.types';
 
 type JournalRow = PersonalTransaction & {
@@ -76,7 +79,7 @@ export function WalletScreen({ projectId }: Props) {
   if (!profile || loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -93,44 +96,47 @@ export function WalletScreen({ projectId }: Props) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Кошелёк</Text>
       <Text style={styles.balance}>{balance.toFixed(2)} ₽</Text>
-      <Text style={styles.label}>Мой номер участника: {profile.participant_number}</Text>
+      <Text style={styles.participantNumber}>Мой номер участника: {profile.participant_number}</Text>
 
-      <Pressable style={styles.secondaryButton} onPress={() => setShowQr((v) => !v)}>
-        <Text style={styles.secondaryButtonText}>{showQr ? 'Скрыть QR' : 'Показать мой QR'}</Text>
-      </Pressable>
+      <Button
+        title={showQr ? 'Скрыть QR' : 'Показать мой QR'}
+        variant="secondary"
+        onPress={() => setShowQr((v) => !v)}
+        style={styles.qrToggle}
+      />
 
       {showQr ? (
         <View style={styles.qrBox}>
-          <QRCode value={encodeParticipantCode(profile.participant_number)} size={200} />
+          <QRCode value={encodeParticipantCode(profile.participant_number)} size={148} />
         </View>
       ) : null}
 
-      <Pressable style={styles.primaryButton} onPress={() => setSendOpen(true)}>
-        <Text style={styles.primaryButtonText}>Отправить</Text>
-      </Pressable>
+      <Button title="Отправить" onPress={() => setSendOpen(true)} style={styles.sendButton} />
 
       <Text style={styles.sectionTitle}>Журнал операций</Text>
       {journal.length === 0 ? (
         <Text style={styles.label}>Пока нет операций</Text>
       ) : (
-        journal.map((row) => {
-          const outgoing = row.from_profile_id === session?.user.id;
-          const counterparty = outgoing
-            ? row.to_profile?.full_name ?? row.to_team?.name ?? '—'
-            : row.from_profile?.full_name ?? row.from_team?.name ?? 'Система';
-          return (
-            <View key={row.id} style={styles.journalRow}>
-              <View>
-                <Text style={styles.journalCounterparty}>{counterparty}</Text>
-                <Text style={styles.journalKind}>{KIND_LABEL[row.kind]}</Text>
-              </View>
-              <Text style={outgoing ? styles.amountOut : styles.amountIn}>
-                {outgoing ? '-' : '+'}
-                {row.amount.toFixed(2)} ₽
-              </Text>
-            </View>
-          );
-        })
+        <View style={styles.journalList}>
+          {journal.map((row) => {
+            const outgoing = row.from_profile_id === session?.user.id;
+            const counterparty = outgoing
+              ? row.to_profile?.full_name ?? row.to_team?.name ?? '—'
+              : row.from_profile?.full_name ?? row.from_team?.name ?? 'Система';
+            return (
+              <Card key={row.id} style={styles.journalRow}>
+                <View>
+                  <Text style={styles.journalCounterparty}>{counterparty}</Text>
+                  <Text style={styles.journalKind}>{KIND_LABEL[row.kind]}</Text>
+                </View>
+                <Text style={outgoing ? styles.amountOut : styles.amountIn}>
+                  {outgoing ? '-' : '+'}
+                  {row.amount.toFixed(2)} ₽
+                </Text>
+              </Card>
+            );
+          })}
+        </View>
       )}
 
       <SendMoneyModal
@@ -147,89 +153,93 @@ export function WalletScreen({ projectId }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: font.heading,
+    fontSize: 19,
+    color: colors.text,
   },
   balance: {
-    fontSize: 32,
-    fontWeight: '700',
+    fontFamily: font.heading,
+    fontSize: 38,
+    color: colors.text,
     marginTop: 8,
   },
   label: {
+    fontFamily: font.body,
     fontSize: 13,
-    color: '#666',
+    color: colors.textMuted,
+  },
+  participantNumber: {
+    fontFamily: font.body,
+    fontSize: 12,
+    color: colors.textMuted,
     marginTop: 4,
-    marginBottom: 8,
+    marginBottom: spacing.lg,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 20,
-    marginBottom: 8,
+    fontFamily: font.heading,
+    fontSize: 16,
+    color: colors.text,
+    marginTop: spacing.xl,
+    marginBottom: spacing.sm + 2,
+  },
+  qrToggle: {
+    marginBottom: 10,
   },
   qrBox: {
     alignItems: 'center',
-    paddingVertical: 16,
+    justifyContent: 'center',
+    alignSelf: 'center',
+    width: 172,
+    height: 172,
+    backgroundColor: '#f6f6f6',
+    borderRadius: 12,
+    marginVertical: spacing.md,
   },
-  primaryButton: {
-    backgroundColor: '#111',
-    borderRadius: 10,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 8,
-    marginBottom: 8,
+  sendButton: {
+    marginTop: 6,
+    marginBottom: spacing.xl + 2,
   },
-  primaryButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  secondaryButton: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  secondaryButtonText: {
-    fontWeight: '600',
+  journalList: {
+    gap: spacing.sm,
   },
   journalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
+    padding: 12,
   },
   journalCounterparty: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 13.5,
+    color: colors.text,
   },
   journalKind: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 2,
+    fontFamily: font.body,
+    fontSize: 11.5,
+    color: colors.textMuted,
+    marginTop: 1,
   },
   amountOut: {
-    color: '#c00',
-    fontWeight: '600',
+    fontFamily: font.heading,
+    fontSize: 14.5,
+    color: colors.danger,
   },
   amountIn: {
-    color: '#0a7d2c',
-    fontWeight: '600',
+    fontFamily: font.heading,
+    fontSize: 14.5,
+    color: colors.success,
   },
 });

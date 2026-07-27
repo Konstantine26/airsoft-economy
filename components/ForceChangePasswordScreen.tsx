@@ -1,7 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { TextField } from './TextField';
+import { colors, font, radii, spacing } from '../lib/theme';
 
 export function ForceChangePasswordScreen() {
   const { session, signOut, refreshProfile } = useAuth();
@@ -49,19 +51,22 @@ export function ForceChangePasswordScreen() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.glyph}>
+        <Text style={styles.glyphIcon}>🔒</Text>
+      </View>
       <Text style={styles.title}>Смена пароля</Text>
       <Text style={styles.subtitle}>
         Это предустановленная учётная запись. Придумайте новый пароль перед продолжением.
       </Text>
 
-      <TextInput
+      <TextField
         style={styles.input}
         placeholder="Новый пароль"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
-      <TextInput
+      <TextField
         style={styles.input}
         placeholder="Повторите пароль"
         value={confirmPassword}
@@ -72,7 +77,7 @@ export function ForceChangePasswordScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
-        {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.submitButtonText}>Сохранить</Text>}
+        {submitting ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.submitButtonText}>Сохранить</Text>}
       </Pressable>
 
       <Pressable onPress={signOut}>
@@ -86,49 +91,65 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    backgroundColor: '#fff',
+    paddingHorizontal: 26,
+    backgroundColor: colors.bg,
+  },
+  glyph: {
+    width: 56,
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: spacing.md,
+  },
+  glyphIcon: {
+    fontSize: 24,
   },
   title: {
+    fontFamily: font.heading,
     fontSize: 24,
-    fontWeight: '700',
+    letterSpacing: 0.4,
+    color: colors.text,
     textAlign: 'center',
-    marginBottom: 8,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: font.body,
+    fontSize: 13,
+    color: colors.textMuted,
     textAlign: 'center',
-    marginBottom: 24,
+    marginTop: 6,
+    marginBottom: spacing.xxl,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 16,
-    marginBottom: 12,
+    marginBottom: spacing.sm + 2,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: '#111',
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: colors.accent,
+    borderRadius: radii.md,
+    paddingVertical: 13,
     alignItems: 'center',
-    marginBottom: 16,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
   },
   submitButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontFamily: font.heading,
+    color: colors.onAccent,
+    fontSize: 15,
   },
   switchText: {
+    fontFamily: font.body,
     textAlign: 'center',
-    color: '#c00',
+    color: colors.danger,
+    fontSize: 13,
   },
 });

@@ -3,6 +3,7 @@ import { Image, Pressable, StyleSheet, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { PolygonMap } from '../lib/database.types';
 import { ImageLightbox } from './ImageLightbox';
+import { colors, radii } from '../lib/theme';
 
 const BUCKET = 'polygon-maps';
 
@@ -60,7 +61,7 @@ const styles = StyleSheet.create({
   thumb: {
     width: 48,
     height: 48,
-    borderRadius: 6,
-    backgroundColor: '#f2f2f2',
+    borderRadius: radii.sm - 2,
+    backgroundColor: colors.card,
   },
 });

@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { TextField } from './TextField';
+import { Button } from './Button';
 
 type Props = {
   placeholder?: string;
@@ -19,16 +21,14 @@ export function AmountForm({ placeholder = 'Сумма', buttonLabel = 'Попо
 
   return (
     <View style={styles.row}>
-      <TextInput
+      <TextField
         style={styles.input}
         placeholder={placeholder}
         value={amount}
         onChangeText={setAmount}
         keyboardType="decimal-pad"
       />
-      <Pressable style={styles.button} onPress={submit}>
-        <Text style={styles.buttonText}>{buttonLabel}</Text>
-      </Pressable>
+      <Button title={buttonLabel} onPress={submit} style={styles.button} />
     </View>
   );
 }
@@ -37,26 +37,17 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     gap: 8,
-    marginTop: 10,
+    marginTop: 8,
+    alignItems: 'stretch',
   },
   input: {
     flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    fontSize: 14,
+    paddingVertical: 7,
+    fontSize: 12.5,
   },
   button: {
-    backgroundColor: '#111',
-    borderRadius: 8,
     paddingHorizontal: 14,
+    paddingVertical: 0,
     justifyContent: 'center',
-  },
-  buttonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
   },
 });

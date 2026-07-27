@@ -1,16 +1,13 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
+import { Card } from './Card';
+import { Chip } from './Chip';
+import { AmountForm } from './AmountForm';
+import { colors, font, radii, spacing } from '../lib/theme';
 
 type RosterRow = { id: string; profile_id: string; full_name: string; avatar_url: string | null };
 type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
@@ -44,6 +41,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       full_name: row.profile?.full_name || '(без имени)',
       avatar_url: row.profile?.avatar_url ?? null,
     }));
+    rows.sort((a, b) => Number(b.profile_id === team.commander_id) - Number(a.profile_id === team.commander_id));
     setRoster(rows);
 
     const { data: allProfiles } = await supabase.from('profiles').select('*');
@@ -194,7 +192,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -213,15 +211,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
         <Text style={styles.sectionTitle}>Сторона команды {activeTeam.name}</Text>
         <View style={styles.chips}>
           {sides.map((side) => (
-            <Pressable
-              key={side.id}
-              style={[styles.chip, teamSideId === side.id && styles.chipSelected]}
-              onPress={() => pickSide(side.id)}
-            >
-              <Text style={teamSideId === side.id ? styles.chipTextSelected : styles.chipText}>
-                {side.name}
-              </Text>
-            </Pressable>
+            <Chip key={side.id} label={side.name} selected={teamSideId === side.id} onPress={() => pickSide(side.id)} />
           ))}
         </View>
 
@@ -229,28 +219,24 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
         {!teamSideId ? (
           <Text style={styles.label}>Сначала выберите сторону</Text>
         ) : (
-          roster.map((row) => {
-            const status = registeredProfiles.get(row.profile_id);
-            return (
-              <Pressable
-                key={row.id}
-                style={styles.rosterRow}
-                onPress={() => toggleParticipant(row.profile_id)}
-              >
-                <View style={styles.rosterIdentity}>
-                  <Avatar uri={row.avatar_url} name={row.full_name} size={28} />
-                  <Text style={styles.rosterName}>{row.full_name}</Text>
-                </View>
-                <Text style={status ? styles.checkOn : styles.checkOff}>
-                  {status === 'confirmed'
-                    ? 'Подтверждён'
-                    : status === 'pending'
-                      ? 'На подтверждении'
-                      : 'Не играет'}
-                </Text>
-              </Pressable>
-            );
-          })
+          <View style={styles.rosterList}>
+            {roster.map((row) => {
+              const status = registeredProfiles.get(row.profile_id);
+              return (
+                <Card key={row.id} style={styles.rosterRowCard}>
+                  <Pressable style={styles.rosterRow} onPress={() => toggleParticipant(row.profile_id)}>
+                    <View style={styles.rosterIdentity}>
+                      <Avatar uri={row.avatar_url} name={row.full_name} size={22} />
+                      <Text style={styles.rosterName}>{row.full_name}</Text>
+                    </View>
+                    <Text style={status === 'confirmed' ? styles.statusConfirmed : status === 'pending' ? styles.statusPending : styles.statusOff}>
+                      {status === 'confirmed' ? 'Подтверждён' : status === 'pending' ? 'На подтверждении' : 'Не играет'}
+                    </Text>
+                  </Pressable>
+                </Card>
+              );
+            })}
+          </View>
         )}
       </ScrollView>
     );
@@ -263,15 +249,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       {teams.length > 1 ? (
         <View style={styles.chips}>
           {teams.map((team) => (
-            <Pressable
-              key={team.id}
-              style={[styles.chip, activeTeam.id === team.id && styles.chipSelected]}
-              onPress={() => setActiveTeam(team)}
-            >
-              <Text style={activeTeam.id === team.id ? styles.chipTextSelected : styles.chipText}>
-                {team.name}
-              </Text>
-            </Pressable>
+            <Chip key={team.id} label={team.name} selected={activeTeam.id === team.id} onPress={() => setActiveTeam(team)} />
           ))}
         </View>
       ) : null}
@@ -285,156 +263,134 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <Text style={styles.sectionTitle}>Ростер</Text>
-      {roster.map((row) => (
-        <View key={row.id} style={styles.rosterCard}>
-          <View style={styles.rosterRow}>
-            <View style={styles.rosterIdentity}>
-              <Avatar uri={row.avatar_url} name={row.full_name} size={28} />
-              <Text style={styles.rosterName}>{row.full_name}</Text>
+      <View style={styles.rosterList}>
+        {roster.map((row) => (
+          <Card key={row.id}>
+            <View style={styles.rosterRow}>
+              <View style={styles.rosterIdentity}>
+                <Avatar uri={row.avatar_url} name={row.full_name} size={22} />
+                <Text style={styles.rosterName}>{row.full_name}</Text>
+                {row.profile_id === activeTeam.commander_id ? (
+                  <MaterialCommunityIcons name="crown" size={14} color={colors.crown} />
+                ) : null}
+              </View>
+              <Pressable onPress={() => removeMember(row)}>
+                <Text style={styles.removeText}>Убрать</Text>
+              </Pressable>
             </View>
-            <Pressable onPress={() => removeMember(row)}>
-              <Text style={styles.removeText}>Убрать</Text>
-            </Pressable>
-          </View>
-          {projectId ? (
-            <DistributeRow onDistribute={(amount) => distribute(row.profile_id, amount)} />
-          ) : null}
-        </View>
-      ))}
+            {projectId ? (
+              <AmountForm buttonLabel="Выдать" onSubmit={(amount) => distribute(row.profile_id, amount)} />
+            ) : null}
+          </Card>
+        ))}
+      </View>
 
       <Text style={styles.sectionTitle}>Добавить в команду</Text>
-      {availableProfiles.map((p) => (
-        <Pressable key={p.id} style={styles.rosterRow} onPress={() => addMember(p)}>
-          <View style={styles.rosterIdentity}>
-            <Avatar uri={p.avatar_url} name={p.full_name} size={28} />
-            <Text style={styles.rosterName}>{p.full_name || '(без имени)'}</Text>
-          </View>
-          <Text style={styles.addText}>+ Добавить</Text>
-        </Pressable>
-      ))}
+      <View style={styles.rosterList}>
+        {availableProfiles.map((p) => (
+          <Pressable key={p.id} style={styles.addRow} onPress={() => addMember(p)}>
+            <View style={styles.rosterIdentity}>
+              <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
+              <Text style={styles.rosterName}>{p.full_name || '(без имени)'}</Text>
+            </View>
+            <Text style={styles.addText}>+ Добавить</Text>
+          </Pressable>
+        ))}
+      </View>
 
       <Text style={styles.sectionTitle}>Игры</Text>
-      {games.map((game) => (
-        <Pressable key={game.id} style={styles.card} onPress={() => openGame(game)}>
-          <Text style={styles.cardTitle}>{game.name}</Text>
-          <Text style={styles.label}>{game.project_name} · {game.polygon?.name ?? '—'}</Text>
-        </Pressable>
-      ))}
+      <View style={styles.rosterList}>
+        {games.map((game) => (
+          <Pressable key={game.id} onPress={() => openGame(game)}>
+            <Card>
+              <Text style={styles.cardTitle}>{game.name}</Text>
+              <Text style={styles.label}>{game.project_name} · {game.polygon?.name ?? '—'}</Text>
+            </Card>
+          </Pressable>
+        ))}
+      </View>
     </ScrollView>
-  );
-}
-
-function DistributeRow({ onDistribute }: { onDistribute: (amount: number) => void }) {
-  const [amount, setAmount] = useState('');
-
-  const submit = () => {
-    const numeric = Number(amount.replace(',', '.'));
-    if (!Number.isFinite(numeric) || numeric <= 0) return;
-    onDistribute(numeric);
-    setAmount('');
-  };
-
-  return (
-    <View style={styles.distributeRow}>
-      <TextInput
-        style={styles.distributeInput}
-        placeholder="Сумма"
-        value={amount}
-        onChangeText={setAmount}
-        keyboardType="decimal-pad"
-      />
-      <Pressable style={styles.distributeButton} onPress={submit}>
-        <Text style={styles.distributeButtonText}>Выдать</Text>
-      </Pressable>
-    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
   back: {
-    color: '#666',
-    marginBottom: 8,
+    fontFamily: font.body,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: font.heading,
+    fontSize: 19,
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: font.body,
+    fontSize: 13,
+    color: colors.textMuted,
     marginTop: 4,
-    marginBottom: 8,
+    marginBottom: spacing.md,
   },
   sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+    fontFamily: font.heading,
+    fontSize: 15,
+    color: colors.text,
+    marginTop: spacing.lg,
+    marginBottom: spacing.sm + 2,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 13.5,
+    color: colors.text,
   },
   label: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 4,
+    fontFamily: font.body,
+    fontSize: 11.5,
+    color: colors.textMuted,
+    marginTop: 3,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
+  rosterList: {
+    gap: spacing.sm,
   },
-  chipSelected: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  chipText: {
-    color: '#111',
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: '#fff',
-    fontSize: 13,
-  },
-  rosterCard: {
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-    paddingVertical: 8,
+  rosterRowCard: {
+    padding: 0,
+    overflow: 'hidden',
   },
   rosterRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 4,
+    padding: 12,
+  },
+  addRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.lg,
+    padding: 12,
   },
   rosterIdentity: {
     flexDirection: 'row',
@@ -442,52 +398,39 @@ const styles = StyleSheet.create({
     gap: 8,
     flex: 1,
   },
-  distributeRow: {
-    flexDirection: 'row',
-    gap: 8,
-    marginTop: 6,
-    marginBottom: 4,
-  },
-  distributeInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    fontSize: 14,
-  },
-  distributeButton: {
-    backgroundColor: '#111',
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    justifyContent: 'center',
-  },
-  distributeButtonText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: 13,
-  },
   rosterName: {
-    fontSize: 15,
+    fontFamily: font.bodySemiBold,
+    fontSize: 13.5,
+    color: colors.text,
   },
   removeText: {
-    color: '#c00',
-    fontSize: 13,
+    fontFamily: font.body,
+    color: colors.danger,
+    fontSize: 12,
   },
   addText: {
-    color: '#0a7d2c',
-    fontSize: 13,
+    fontFamily: font.body,
+    color: colors.success,
+    fontSize: 12,
   },
-  checkOn: {
-    color: '#0a7d2c',
-    fontWeight: '600',
+  statusConfirmed: {
+    fontFamily: font.body,
+    color: colors.success,
+    fontSize: 11,
   },
-  checkOff: {
-    color: '#999',
+  statusPending: {
+    fontFamily: font.body,
+    color: colors.accent,
+    fontSize: 11,
+  },
+  statusOff: {
+    fontFamily: font.body,
+    color: colors.textDim,
+    fontSize: 11,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
 });

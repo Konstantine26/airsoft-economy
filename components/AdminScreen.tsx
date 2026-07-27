@@ -1,9 +1,11 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AdminTeamsTab } from './AdminTeamsTab';
 import { AdminProjectsTab } from './AdminProjectsTab';
 import { PolygonsScreen } from './PolygonsScreen';
+import { Chip } from './Chip';
+import { colors, spacing } from '../lib/theme';
 
 type SubTabKey = 'users' | 'teams' | 'polygons' | 'projects';
 
@@ -24,17 +26,11 @@ export function AdminScreen({ activeProjectId, onProjectsChanged }: Props) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.tabBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
         {SUB_TABS.map((t) => (
-          <Pressable
-            key={t.key}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
-            onPress={() => setTab(t.key)}
-          >
-            <Text style={tab === t.key ? styles.tabLabelActive : styles.tabLabel}>{t.label}</Text>
-          </Pressable>
+          <Chip key={t.key} label={t.label} selected={tab === t.key} onPress={() => setTab(t.key)} />
         ))}
-      </View>
+      </ScrollView>
 
       <View style={styles.body}>
         {tab === 'users' ? <AdminUsersTab activeProjectId={activeProjectId} /> : null}
@@ -49,35 +45,18 @@ export function AdminScreen({ activeProjectId, onProjectsChanged }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   tabBar: {
+    flexGrow: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  tabBarContent: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-  },
-  tab: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  tabActive: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  tabLabel: {
-    color: '#111',
-    fontSize: 13,
-  },
-  tabLabelActive: {
-    color: '#fff',
-    fontSize: 13,
   },
   body: {
     flex: 1,

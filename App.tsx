@@ -1,9 +1,11 @@
+import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
 import { Dashboard } from './components/Dashboard';
 import { ForceChangePasswordScreen } from './components/ForceChangePasswordScreen';
+import { colors, fontsToLoad } from './lib/theme';
 
 function Root() {
   const { session, profile, loading } = useAuth();
@@ -11,7 +13,7 @@ function Root() {
   if (loading || (session && !profile)) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -24,11 +26,13 @@ function Root() {
 }
 
 export default function App() {
+  const [fontsLoaded] = useFonts(fontsToLoad);
+
   return (
     <AuthProvider>
       <SafeAreaView style={styles.container}>
-        <Root />
-        <StatusBar style="auto" />
+        {fontsLoaded ? <Root /> : <View style={styles.center}><ActivityIndicator color={colors.accent} /></View>}
+        <StatusBar style="light" />
       </SafeAreaView>
     </AuthProvider>
   );
@@ -37,11 +41,12 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
 });

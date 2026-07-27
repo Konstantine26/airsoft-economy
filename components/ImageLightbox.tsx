@@ -1,4 +1,5 @@
 import { Image, Modal, Pressable, StyleSheet, Text } from 'react-native';
+import { colors, font } from '../lib/theme';
 
 type Props = {
   uri: string | null;
@@ -23,7 +24,7 @@ export function ImageLightbox({ uri, onClose }: Props) {
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    backgroundColor: colors.overlayStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -42,13 +43,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: colors.white14,
     alignItems: 'center',
     justifyContent: 'center',
   },
   closeText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 20,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
   },
 });

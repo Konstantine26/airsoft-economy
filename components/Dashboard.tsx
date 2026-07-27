@@ -5,16 +5,19 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { Avatar } from './Avatar';
+import { Chip } from './Chip';
 import { AdminScreen } from './AdminScreen';
+import { BriefingScreen } from './BriefingScreen';
 import { OrganizerScreen } from './OrganizerScreen';
 import { TeamCommanderScreen } from './TeamCommanderScreen';
 import { SideCommanderScreen } from './SideCommanderScreen';
 import { ParticipantScreen } from './ParticipantScreen';
 import { TeamsScreen } from './TeamsScreen';
 import { WalletScreen } from './WalletScreen';
+import { colors, font, spacing } from '../lib/theme';
 import type { Project } from '../lib/database.types';
 
-type TabKey = 'home' | 'wallet' | 'economy' | 'team' | 'side' | 'organizer' | 'admin';
+type TabKey = 'home' | 'briefing' | 'wallet' | 'economy' | 'team' | 'side' | 'organizer' | 'admin';
 
 const AVATAR_BUCKET = 'avatars';
 
@@ -24,7 +27,14 @@ export function Dashboard() {
   const [tab, setTab] = useState<TabKey>('home');
   const [economyProjects, setEconomyProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const activateGame = useCallback((game: { id: string; project_id: string }) => {
+    setActiveGameId(game.id);
+    setActiveProjectId(game.project_id);
+    setTab('briefing');
+  }, []);
 
   const changeAvatar = useCallback(async () => {
     if (!session) return;
@@ -85,6 +95,7 @@ export function Dashboard() {
 
   const tabs = useMemo(() => {
     const list: { key: TabKey; label: string }[] = [{ key: 'home', label: 'Главная' }];
+    if (activeGameId) list.push({ key: 'briefing', label: 'Брифинг' });
     list.push({ key: 'wallet', label: 'Кошелёк' });
     const isOrganizerOrAdmin = profile?.role === 'admin' || capabilities.isOrganizer;
     if (isOrganizerOrAdmin) list.push({ key: 'economy', label: 'Экономика' });
@@ -93,12 +104,12 @@ export function Dashboard() {
     if (isOrganizerOrAdmin) list.push({ key: 'organizer', label: 'Организатор' });
     if (profile?.role === 'admin') list.push({ key: 'admin', label: 'Админ' });
     return list;
-  }, [capabilities.commandedTeams, capabilities.commandedSides, capabilities.isOrganizer, profile]);
+  }, [activeGameId, capabilities.commandedTeams, capabilities.commandedSides, capabilities.isOrganizer, profile]);
 
   if (!profile || capabilities.loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -109,11 +120,11 @@ export function Dashboard() {
         <View style={styles.headerIdentity}>
           <Pressable onPress={changeAvatar} disabled={uploadingAvatar}>
             {uploadingAvatar ? (
-              <View style={[styles.avatarLoading, { width: 36, height: 36, borderRadius: 18 }]}>
-                <ActivityIndicator size="small" />
+              <View style={[styles.avatarLoading, { width: 32, height: 32, borderRadius: 16 }]}>
+                <ActivityIndicator size="small" color={colors.accent} />
               </View>
             ) : (
-              <Avatar uri={profile.avatar_url} name={profile.full_name} size={36} />
+              <Avatar uri={profile.avatar_url} name={profile.full_name} size={32} />
             )}
           </Pressable>
           <Text style={styles.headerName}>{profile.full_name || 'Без имени'}</Text>
@@ -129,37 +140,34 @@ export function Dashboard() {
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chips}>
               {economyProjects.map((project) => (
-                <Pressable
+                <Chip
                   key={project.id}
-                  style={[styles.chip, activeProjectId === project.id && styles.chipSelected]}
+                  label={project.name}
+                  selected={activeProjectId === project.id}
                   onPress={() => setActiveProjectId(project.id)}
-                >
-                  <Text style={activeProjectId === project.id ? styles.chipTextSelected : styles.chipText}>
-                    {project.name}
-                  </Text>
-                </Pressable>
+                />
               ))}
             </View>
           </ScrollView>
         </View>
       ) : null}
 
-      <View style={styles.tabBar}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
         {tabs.map((t) => (
-          <Pressable
-            key={t.key}
-            style={[styles.tab, tab === t.key && styles.tabActive]}
-            onPress={() => setTab(t.key)}
-          >
-            <Text style={tab === t.key ? styles.tabLabelActive : styles.tabLabel}>{t.label}</Text>
-          </Pressable>
+          <Chip key={t.key} label={t.label} selected={tab === t.key} onPress={() => setTab(t.key)} />
         ))}
-      </View>
+      </ScrollView>
 
       <View style={styles.body}>
         {tab === 'home' ? (
-          <ParticipantScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
+          <ParticipantScreen
+            ownMembership={capabilities.ownMembership}
+            activeProjectId={activeProjectId}
+            activeGameId={activeGameId}
+            onActivateGame={activateGame}
+          />
         ) : null}
+        {tab === 'briefing' && activeGameId ? <BriefingScreen gameId={activeGameId} /> : null}
         {tab === 'wallet' ? <WalletScreen projectId={activeProjectId} /> : null}
         {tab === 'economy' ? <TeamsScreen projectId={activeProjectId} /> : null}
         {tab === 'team' ? (
@@ -178,104 +186,72 @@ export function Dashboard() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
   },
   headerIdentity: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 9,
   },
   headerName: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
   },
   avatarLoading: {
-    backgroundColor: '#eee',
+    backgroundColor: colors.card,
     alignItems: 'center',
     justifyContent: 'center',
   },
   signOut: {
-    color: '#c00',
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: colors.danger,
   },
   projectBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
-    backgroundColor: '#fafafa',
-  },
-  projectBarLabel: {
-    fontSize: 12,
-    color: '#666',
-  },
-  tabBar: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 8,
     gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ddd',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
   },
-  tab: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
+  projectBarLabel: {
+    fontFamily: font.body,
+    fontSize: 12,
+    color: colors.textMuted,
   },
-  tabActive: {
-    backgroundColor: '#111',
-    borderColor: '#111',
+  tabBar: {
+    flexGrow: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
   },
-  tabLabel: {
-    color: '#111',
-    fontSize: 13,
-  },
-  tabLabelActive: {
-    color: '#fff',
-    fontSize: 13,
+  tabBarContent: {
+    flexDirection: 'row',
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    gap: 7,
   },
   chips: {
     flexDirection: 'row',
     gap: 8,
-  },
-  chip: {
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  chipSelected: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  chipText: {
-    color: '#111',
-    fontSize: 12,
-  },
-  chipTextSelected: {
-    color: '#fff',
-    fontSize: 12,
   },
   body: {
     flex: 1,

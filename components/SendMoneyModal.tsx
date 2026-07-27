@@ -1,16 +1,12 @@
 import { useState } from 'react';
-import {
-  ActivityIndicator,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import { decodeParticipantCode } from '../lib/participantCode';
+import { Sheet } from './Sheet';
+import { Button } from './Button';
+import { TextField } from './TextField';
+import { colors, font, radii, spacing } from '../lib/theme';
 import type { Profile, Team } from '../lib/database.types';
 
 type Mode = 'choose' | 'team-amount' | 'participant-entry' | 'participant-scan' | 'participant-confirm';
@@ -129,229 +125,180 @@ export function SendMoneyModal({ visible, projectId, ownTeam, onClose, onSuccess
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={handleClose}>
-      <View style={styles.backdrop}>
-        <View style={styles.sheet}>
-          {mode === 'choose' ? (
-            <>
-              <Text style={styles.title}>Отправить деньги</Text>
-              <Pressable
-                style={[styles.optionButton, !ownTeam && styles.optionButtonDisabled]}
-                disabled={!ownTeam}
-                onPress={() => setMode('team-amount')}
-              >
-                <Text style={styles.optionButtonText}>
-                  {ownTeam ? `В команду «${ownTeam.name}»` : 'Вы не в команде'}
-                </Text>
-              </Pressable>
-              <Pressable style={styles.optionButton} onPress={() => setMode('participant-entry')}>
-                <Text style={styles.optionButtonText}>Участнику по номеру</Text>
-              </Pressable>
-              <Pressable style={styles.optionButton} onPress={() => setMode('participant-scan')}>
-                <Text style={styles.optionButtonText}>Участнику по QR-коду</Text>
-              </Pressable>
-              <Pressable style={styles.cancelButton} onPress={handleClose}>
-                <Text style={styles.cancelButtonText}>Отмена</Text>
-              </Pressable>
-            </>
-          ) : null}
+    <Sheet visible={visible} onRequestClose={handleClose}>
+      {mode === 'choose' ? (
+        <>
+          <Text style={styles.title}>Отправить деньги</Text>
+          <Pressable
+            style={[styles.optionButton, !ownTeam && styles.optionButtonDisabled]}
+            disabled={!ownTeam}
+            onPress={() => setMode('team-amount')}
+          >
+            <Text style={styles.optionButtonText}>
+              {ownTeam ? `В команду «${ownTeam.name}»` : 'Вы не в команде'}
+            </Text>
+          </Pressable>
+          <Pressable style={styles.optionButton} onPress={() => setMode('participant-entry')}>
+            <Text style={styles.optionButtonText}>Участнику по номеру</Text>
+          </Pressable>
+          <Pressable style={styles.optionButton} onPress={() => setMode('participant-scan')}>
+            <Text style={styles.optionButtonText}>Участнику по QR-коду</Text>
+          </Pressable>
+          <Pressable style={styles.cancelLink} onPress={handleClose}>
+            <Text style={styles.cancelLinkText}>Отмена</Text>
+          </Pressable>
+        </>
+      ) : null}
 
-          {mode === 'team-amount' ? (
+      {mode === 'team-amount' ? (
+        <>
+          <Text style={styles.title}>В команду «{ownTeam?.name}»</Text>
+          <TextField
+            style={styles.input}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="Сумма"
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.actions}>
+            <Button title="Назад" variant="secondary" onPress={reset} style={styles.actionButton} />
+            <Button title="Отправить" onPress={submitTeamTransfer} loading={submitting} style={styles.actionButton} />
+          </View>
+        </>
+      ) : null}
+
+      {mode === 'participant-entry' ? (
+        <>
+          <Text style={styles.title}>Номер участника</Text>
+          <TextField
+            style={styles.input}
+            value={numberInput}
+            onChangeText={setNumberInput}
+            keyboardType="number-pad"
+            placeholder="Например, 42"
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.actions}>
+            <Button title="Назад" variant="secondary" onPress={reset} style={styles.actionButton} />
+            <Button title="Далее" onPress={handleManualSubmit} style={styles.actionButton} />
+          </View>
+        </>
+      ) : null}
+
+      {mode === 'participant-scan' ? (
+        <>
+          <Text style={styles.title}>Сканировать QR</Text>
+          {!permission?.granted ? (
             <>
-              <Text style={styles.title}>В команду «{ownTeam?.name}»</Text>
-              <TextInput
-                style={styles.input}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                placeholder="Сумма"
+              <Text style={styles.label}>Нужен доступ к камере</Text>
+              <Button title="Разрешить" onPress={requestPermission} style={styles.permissionButton} />
+            </>
+          ) : (
+            <View style={styles.cameraBox}>
+              <CameraView
+                style={styles.camera}
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={handleBarcodeScanned}
               />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <View style={styles.actions}>
-                <Pressable style={styles.cancelButton} onPress={reset}>
-                  <Text style={styles.cancelButtonText}>Назад</Text>
-                </Pressable>
-                <Pressable style={styles.submitButton} onPress={submitTeamTransfer} disabled={submitting}>
-                  {submitting ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Отправить</Text>
-                  )}
-                </Pressable>
-              </View>
-            </>
-          ) : null}
+            </View>
+          )}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button title="Назад" variant="secondary" onPress={reset} />
+        </>
+      ) : null}
 
-          {mode === 'participant-entry' ? (
-            <>
-              <Text style={styles.title}>Номер участника</Text>
-              <TextInput
-                style={styles.input}
-                value={numberInput}
-                onChangeText={setNumberInput}
-                keyboardType="number-pad"
-                placeholder="Например, 42"
-              />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <View style={styles.actions}>
-                <Pressable style={styles.cancelButton} onPress={reset}>
-                  <Text style={styles.cancelButtonText}>Назад</Text>
-                </Pressable>
-                <Pressable style={styles.submitButton} onPress={handleManualSubmit}>
-                  <Text style={styles.submitButtonText}>Далее</Text>
-                </Pressable>
-              </View>
-            </>
-          ) : null}
-
-          {mode === 'participant-scan' ? (
-            <>
-              <Text style={styles.title}>Сканировать QR</Text>
-              {!permission?.granted ? (
-                <>
-                  <Text style={styles.label}>Нужен доступ к камере</Text>
-                  <Pressable style={styles.submitButton} onPress={requestPermission}>
-                    <Text style={styles.submitButtonText}>Разрешить</Text>
-                  </Pressable>
-                </>
-              ) : (
-                <View style={styles.cameraBox}>
-                  <CameraView
-                    style={styles.camera}
-                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
-                    onBarcodeScanned={handleBarcodeScanned}
-                  />
-                </View>
-              )}
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <Pressable style={styles.cancelButton} onPress={reset}>
-                <Text style={styles.cancelButtonText}>Назад</Text>
-              </Pressable>
-            </>
-          ) : null}
-
-          {mode === 'participant-confirm' && recipient ? (
-            <>
-              <Text style={styles.title}>{recipient.full_name || `Участник #${recipient.participant_number}`}</Text>
-              <Text style={styles.label}>Номер участника: {recipient.participant_number}</Text>
-              <TextInput
-                style={styles.input}
-                value={amount}
-                onChangeText={setAmount}
-                keyboardType="decimal-pad"
-                placeholder="Сумма"
-              />
-              {error ? <Text style={styles.error}>{error}</Text> : null}
-              <View style={styles.actions}>
-                <Pressable style={styles.cancelButton} onPress={reset}>
-                  <Text style={styles.cancelButtonText}>Назад</Text>
-                </Pressable>
-                <Pressable
-                  style={styles.submitButton}
-                  onPress={submitParticipantTransfer}
-                  disabled={submitting}
-                >
-                  {submitting ? (
-                    <ActivityIndicator color="#fff" />
-                  ) : (
-                    <Text style={styles.submitButtonText}>Отправить</Text>
-                  )}
-                </Pressable>
-              </View>
-            </>
-          ) : null}
-        </View>
-      </View>
-    </Modal>
+      {mode === 'participant-confirm' && recipient ? (
+        <>
+          <Text style={styles.title}>{recipient.full_name || `Участник #${recipient.participant_number}`}</Text>
+          <Text style={styles.label}>Номер участника: {recipient.participant_number}</Text>
+          <TextField
+            style={styles.input}
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="decimal-pad"
+            placeholder="Сумма"
+          />
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.actions}>
+            <Button title="Назад" variant="secondary" onPress={reset} style={styles.actionButton} />
+            <Button
+              title="Отправить"
+              onPress={submitParticipantTransfer}
+              loading={submitting}
+              style={styles.actionButton}
+            />
+          </View>
+        </>
+      ) : null}
+    </Sheet>
   );
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
-  },
-  sheet: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 20,
-    paddingBottom: 32,
-    minHeight: 260,
-  },
   title: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 16,
+    fontFamily: font.heading,
+    fontSize: 18,
+    color: colors.text,
+    marginBottom: spacing.md + 2,
   },
   label: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 12,
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
   },
   input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 16,
-    marginBottom: 12,
+    marginBottom: spacing.md + 2,
   },
   optionButton: {
     borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 10,
-    paddingVertical: 14,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.md,
+    paddingVertical: 13,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 9,
   },
   optionButtonDisabled: {
     opacity: 0.5,
   },
   optionButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
   },
   cameraBox: {
-    height: 300,
-    borderRadius: 10,
+    height: 220,
+    borderRadius: 12,
     overflow: 'hidden',
-    marginBottom: 12,
+    marginBottom: spacing.md,
+    backgroundColor: colors.cardSoft,
   },
   camera: {
     flex: 1,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   actions: {
     flexDirection: 'row',
-    gap: 12,
-    marginTop: 8,
+    gap: 10,
   },
-  cancelButton: {
+  actionButton: {
     flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ccc',
   },
-  cancelButtonText: {
-    fontWeight: '600',
+  cancelLink: {
+    marginTop: 4,
   },
-  submitButton: {
-    flex: 1,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderRadius: 10,
-    backgroundColor: '#111',
+  cancelLinkText: {
+    fontFamily: font.body,
+    textAlign: 'center',
+    fontSize: 13.5,
+    color: colors.textMuted,
   },
-  submitButtonText: {
-    color: '#fff',
-    fontWeight: '600',
+  permissionButton: {
+    marginBottom: spacing.md,
   },
 });

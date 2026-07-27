@@ -1,3 +1,5 @@
+import type { GameType } from './gameTypes';
+
 export type Role = 'admin' | 'member';
 
 export type Profile = {
@@ -51,6 +53,7 @@ export type Project = {
   name: string;
   description: string | null;
   economy_enabled: boolean;
+  default_game_type: GameType | null;
   created_by: string | null;
   created_at: string;
 };
@@ -99,6 +102,28 @@ export type Game = {
   name: string;
   polygon_id: string;
   starts_at: string | null;
+  ends_at: string | null;
+  description: string | null;
+  game_type: GameType | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type GameStage = {
+  id: string;
+  game_id: string;
+  position: number;
+  title: string;
+  description: string | null;
+  created_at: string;
+};
+
+export type GameAttachment = {
+  id: string;
+  game_id: string;
+  storage_path: string;
+  file_name: string;
+  content_type: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -123,7 +148,7 @@ export type GameParticipantStatus = 'pending' | 'confirmed';
 export type GameParticipant = {
   id: string;
   game_id: string;
-  team_id: string;
+  team_id: string | null;
   profile_id: string;
   status: GameParticipantStatus;
   side_id: string | null;
@@ -363,7 +388,7 @@ export type Database = {
       };
       game_participants: {
         Row: GameParticipant;
-        Insert: Partial<GameParticipant> & { game_id: string; team_id: string; profile_id: string };
+        Insert: Partial<GameParticipant> & { game_id: string; profile_id: string };
         Update: Partial<GameParticipant>;
         Relationships: [
           {
@@ -388,6 +413,38 @@ export type Database = {
             foreignKeyName: 'game_participants_side_id_fkey';
             columns: ['side_id'];
             referencedRelation: 'game_sides';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      game_stages: {
+        Row: GameStage;
+        Insert: Partial<GameStage> & { game_id: string; title: string };
+        Update: Partial<GameStage>;
+        Relationships: [
+          {
+            foreignKeyName: 'game_stages_game_id_fkey';
+            columns: ['game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      game_attachments: {
+        Row: GameAttachment;
+        Insert: Partial<GameAttachment> & { game_id: string; storage_path: string; file_name: string };
+        Update: Partial<GameAttachment>;
+        Relationships: [
+          {
+            foreignKeyName: 'game_attachments_game_id_fkey';
+            columns: ['game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'game_attachments_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
         ];

@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { GameSide } from '../lib/database.types';
 import { Avatar } from './Avatar';
+import { Card } from './Card';
+import { Chip } from './Chip';
+import { colors, font, spacing } from '../lib/theme';
 
 type ParticipantEntry = { full_name: string; avatar_url: string | null; status: 'pending' | 'confirmed' };
 type TeamWithRoster = {
@@ -80,15 +83,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
       {sides.length > 1 ? (
         <View style={styles.chips}>
           {sides.map((side) => (
-            <Pressable
-              key={side.id}
-              style={[styles.chip, activeSide.id === side.id && styles.chipSelected]}
-              onPress={() => setActiveSide(side)}
-            >
-              <Text style={activeSide.id === side.id ? styles.chipTextSelected : styles.chipText}>
-                {side.name}
-              </Text>
-            </Pressable>
+            <Chip key={side.id} label={side.name} selected={activeSide.id === side.id} onPress={() => setActiveSide(side)} />
           ))}
         </View>
       ) : (
@@ -100,27 +95,32 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {loading ? (
-        <ActivityIndicator style={{ marginTop: 20 }} />
+        <ActivityIndicator style={{ marginTop: 20 }} color={colors.accent} />
       ) : teams.length === 0 ? (
         <Text style={styles.label}>Пока ни одна команда не выбрала эту сторону</Text>
       ) : (
-        teams.map((team) => (
-          <View key={team.team_id} style={styles.card}>
-            <Text style={styles.cardTitle}>{team.team_name}</Text>
-            {team.participants.length === 0 ? (
-              <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
-            ) : (
-              team.participants.map((p, idx) => (
-                <View key={idx} style={styles.participantRow}>
-                  <Avatar uri={p.avatar_url} name={p.full_name} size={26} />
-                  <Text style={styles.participant}>
-                    {p.full_name} {p.status === 'pending' ? '· на подтверждении' : ''}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-        ))
+        <View style={styles.teamsList}>
+          {teams.map((team) => (
+            <Card key={team.team_id}>
+              <Text style={styles.cardTitle}>{team.team_name}</Text>
+              {team.participants.length === 0 ? (
+                <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
+              ) : (
+                team.participants.map((p, idx) => (
+                  <View key={idx} style={styles.participantRow}>
+                    <View style={styles.participantIdentity}>
+                      <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
+                      <Text style={styles.participant}>{p.full_name}</Text>
+                    </View>
+                    <Text style={p.status === 'confirmed' ? styles.statusConfirmed : styles.statusPending}>
+                      {p.status === 'confirmed' ? 'Подтверждён' : 'На подтверждении'}
+                    </Text>
+                  </View>
+                ))
+              )}
+            </Card>
+          ))}
+        </View>
       )}
     </ScrollView>
   );
@@ -129,82 +129,74 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontFamily: font.heading,
+    fontSize: 19,
+    color: colors.text,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#666',
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: colors.textMuted,
     marginTop: 4,
-    marginBottom: 8,
-  },
-  sectionTitle: {
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+    marginBottom: spacing.md,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    marginBottom: 6,
+    fontFamily: font.bodyBold,
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: spacing.sm,
   },
   participantRow: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  participantIdentity: {
+    flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    paddingVertical: 2,
   },
   participant: {
-    fontSize: 14,
-    color: '#333',
+    fontFamily: font.body,
+    fontSize: 13,
+    color: '#d9d9d9',
+  },
+  statusConfirmed: {
+    fontFamily: font.body,
+    fontSize: 11,
+    color: colors.success,
+  },
+  statusPending: {
+    fontFamily: font.body,
+    fontSize: 11,
+    color: colors.accent,
   },
   label: {
+    fontFamily: font.body,
     fontSize: 13,
-    color: '#666',
+    color: colors.textMuted,
     marginTop: 4,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
-    marginBottom: 8,
+    marginBottom: spacing.md,
   },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  chipSelected: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  chipText: {
-    color: '#111',
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: '#fff',
-    fontSize: 13,
+  teamsList: {
+    gap: 10,
   },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
 });

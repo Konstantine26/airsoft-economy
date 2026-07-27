@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true
     },
@@ -35,7 +35,8 @@
         {
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to set your profile avatar"
         }
-      ]
+      ],
+      "expo-font"
     ]
   }
 }

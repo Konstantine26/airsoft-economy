@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Profile, Role } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
 import { Avatar } from './Avatar';
+import { Card } from './Card';
+import { Chip } from './Chip';
+import { colors, font, spacing } from '../lib/theme';
 
 const ROLES: Role[] = ['member', 'admin'];
 const ROLE_LABEL: Record<Role, string> = {
@@ -67,7 +70,7 @@ export function AdminUsersTab({ activeProjectId }: Props) {
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator />
+        <ActivityIndicator color={colors.accent} />
       </View>
     );
   }
@@ -82,35 +85,29 @@ export function AdminUsersTab({ activeProjectId }: Props) {
         </Text>
       ) : null}
 
-      {profiles.map((p) => (
-        <View key={p.id} style={styles.card}>
-          <View style={styles.identityRow}>
-            <Avatar uri={p.avatar_url} name={p.full_name} size={36} />
-            <Text style={styles.cardTitle}>
-              {p.full_name || '(без имени)'} · №{p.participant_number}
-            </Text>
-          </View>
-          {activeProjectId ? (
-            <Text style={styles.label}>Баланс в проекте: {(balances.get(p.id) ?? 0).toFixed(2)} ₽</Text>
-          ) : null}
-          <View style={styles.chips}>
-            {ROLES.map((role) => (
-              <Pressable
-                key={role}
-                style={[styles.chip, p.role === role && styles.chipSelected]}
-                onPress={() => setRole(p.id, role)}
-              >
-                <Text style={p.role === role ? styles.chipTextSelected : styles.chipText}>
-                  {ROLE_LABEL[role]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          {activeProjectId ? (
-            <AmountForm placeholder="Сумма пополнения" buttonLabel="Пополнить" onSubmit={(amount) => deposit(p.id, amount)} />
-          ) : null}
-        </View>
-      ))}
+      <View style={styles.list}>
+        {profiles.map((p) => (
+          <Card key={p.id}>
+            <View style={styles.identityRow}>
+              <Avatar uri={p.avatar_url} name={p.full_name} size={36} />
+              <Text style={styles.cardTitle}>
+                {p.full_name || '(без имени)'} · №{p.participant_number}
+              </Text>
+            </View>
+            {activeProjectId ? (
+              <Text style={styles.label}>Баланс в проекте: {(balances.get(p.id) ?? 0).toFixed(2)} ₽</Text>
+            ) : null}
+            <View style={styles.chips}>
+              {ROLES.map((role) => (
+                <Chip key={role} label={ROLE_LABEL[role]} selected={p.role === role} onPress={() => setRole(p.id, role)} />
+              ))}
+            </View>
+            {activeProjectId ? (
+              <AmountForm placeholder="Сумма пополнения" buttonLabel="Пополнить" onSubmit={(amount) => deposit(p.id, amount)} />
+            ) : null}
+          </Card>
+        ))}
+      </View>
     </ScrollView>
   );
 }
@@ -118,65 +115,47 @@ export function AdminUsersTab({ activeProjectId }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: colors.bg,
   },
   content: {
-    padding: 16,
+    padding: spacing.lg,
     paddingBottom: 40,
   },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: colors.bg,
   },
-  card: {
-    borderWidth: 1,
-    borderColor: '#eee',
-    borderRadius: 10,
-    padding: 12,
-    marginBottom: 10,
+  list: {
+    gap: spacing.sm,
   },
   cardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
+    flex: 1,
   },
   identityRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 8,
+    marginBottom: spacing.sm,
   },
   chips: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
-  chip: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  chipSelected: {
-    backgroundColor: '#111',
-    borderColor: '#111',
-  },
-  chipText: {
-    color: '#111',
-    fontSize: 13,
-  },
-  chipTextSelected: {
-    color: '#fff',
-    fontSize: 13,
-  },
   error: {
-    color: '#c00',
-    marginBottom: 12,
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
   },
   label: {
-    fontSize: 13,
-    color: '#666',
-    marginBottom: 8,
+    fontFamily: font.body,
+    fontSize: 12,
+    color: colors.textMuted,
+    marginBottom: spacing.sm,
   },
 });
