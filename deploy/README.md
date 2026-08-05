@@ -16,12 +16,17 @@ Proxmox host
 │
 └── LXC 202 "app-edge"    (2 vCPU / 2 GB RAM / 10 GB disk)
       Node.js + Caddy serving the Expo *web* export (secondary/organizer
-      surface) + cloudflared tunnel fanning out to both containers
+      surface)
+
+Your existing nginx LXC/VM (already port-forwarded, already has a domain +
+HTTPS) reverse-proxies api.example.com -> LXC 201 and app.example.com ->
+LXC 202 - see deploy/nginx/README.md. No tunnel needed on top of that.
 ```
 
 The mobile app (the primary surface) doesn't live on either container - see
-`deploy/mobile/README.md`. It talks directly to `api.example.com`
-(LXC 201's Kong gateway) over the Cloudflare Tunnel from wherever players are.
+`deploy/mobile/README.md`. It talks directly to `api.example.com` (your
+existing nginx, which forwards to LXC 201's Kong gateway) from wherever
+players are.
 
 Why two containers instead of one: Supabase's stack is the heaviest, most
 stateful piece (the actual database) - keeping it in its own LXC means you
@@ -72,10 +77,15 @@ inside the container.
      bash -c "$(curl -fsSL https://raw.githubusercontent.com/Konstantine26/airsoft-economy/master/deploy/proxmox/install-app-edge-lxc.sh)"
    ```
 
-3. **External access** - follow `deploy/cloudflared/README.md` (run inside
-   LXC 202; the package-install part is also a one-liner). Result:
-   `https://api.example.com` and `https://app.example.com` reachable from
-   anywhere, Supabase Studio stays LAN-only.
+3. **External access** - follow `deploy/nginx/README.md` (run on your
+   existing nginx LXC/VM: two more server blocks + `certbot`, using the IPs
+   from steps 1-2). Result: `https://api.example.com` and
+   `https://app.example.com` reachable from anywhere, Supabase Studio stays
+   LAN-only.
+
+   (`deploy/cloudflared/` is an alternative to this step for setups
+   *without* their own port-forwarded reverse proxy + domain - not needed
+   here since nginx already covers it.)
 
 4. **Mobile app** - follow `deploy/mobile/README.md` from your dev machine:
    one-time EAS login + first APK build, then drop an `EXPO_TOKEN` into LXC
@@ -113,4 +123,4 @@ update          # apt upgrade + forced rebuild of the web export/OTA, even with 
 (`using (true)` for anon read/write) with a comment flagging this as a
 prototype shortcut. That was fine while Supabase Cloud project URLs weren't
 guessable; once `api.example.com` is public, review those policies - this is
-called out again in `deploy/cloudflared/README.md`.
+called out again in `deploy/nginx/README.md`.

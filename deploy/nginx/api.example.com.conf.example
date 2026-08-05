@@ -1,0 +1,27 @@
+# Reverse proxy to the "supabase" LXC's Kong gateway (port 8000).
+# Copy to /etc/nginx/sites-available/api.example.com on your existing nginx
+# LXC/VM, fill in the real domain + the supabase LXC's IP, then:
+#   ln -s /etc/nginx/sites-available/api.example.com /etc/nginx/sites-enabled/
+#   certbot --nginx -d api.example.com
+#   nginx -t && systemctl reload nginx
+
+server {
+    listen 80;
+    server_name api.example.com;
+
+    location / {
+        proxy_pass http://<supabase-LXC-ip>:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # Auth/Realtime use websockets for some flows.
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
+
+# NOTE: Supabase Studio (port 3000 on the supabase LXC) is deliberately not
+# proxied here - it's a full DB admin panel and should stay LAN/VPN-only.
