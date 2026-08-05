@@ -12,6 +12,11 @@ APP_DIR="/opt/airsoft-economy"
 SUPABASE_DIR="/opt/supabase"
 SECRETS_FILE="/root/supabase-secrets.env"
 
+# --- 0. Base packages ----------------------------------------------------
+# The stock Debian 12 LXC template ships without curl/git/openssl.
+apt-get update
+apt-get install -y ca-certificates curl gnupg git openssl
+
 # --- 1. Docker ---------------------------------------------------------
 if ! command -v docker >/dev/null 2>&1; then
   curl -fsSL https://get.docker.com | sh

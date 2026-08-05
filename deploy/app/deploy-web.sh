@@ -11,6 +11,11 @@ APP_DIR="/opt/airsoft-economy"
 SUPABASE_URL="${SUPABASE_URL:?set SUPABASE_URL=https://api.example.com}"
 SUPABASE_ANON_KEY="${SUPABASE_ANON_KEY:?set SUPABASE_ANON_KEY=<ANON_KEY from supabase-secrets.env>}"
 
+# --- Base packages ---------------------------------------------------------
+# The stock Debian 12 LXC template ships without curl/git.
+apt-get update
+apt-get install -y ca-certificates curl gnupg git
+
 # --- Node.js 20 ------------------------------------------------------------
 if ! command -v node >/dev/null 2>&1; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash -

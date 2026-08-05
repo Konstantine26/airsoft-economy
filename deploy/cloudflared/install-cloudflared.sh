@@ -8,6 +8,10 @@
 # interactive browser login and can't be one-lined - see deploy/cloudflared/README.md.
 set -euo pipefail
 
+# The stock Debian 12 LXC template ships without curl/gnupg/lsb-release.
+apt-get update
+apt-get install -y ca-certificates curl gnupg lsb-release
+
 curl -fsSL https://pkg.cloudflare.com/cloudflare-main.gpg | gpg --dearmor -o /usr/share/keyrings/cloudflare-main.gpg
 echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared $(lsb_release -cs) main" > /etc/apt/sources.list.d/cloudflared.list
 apt-get update
