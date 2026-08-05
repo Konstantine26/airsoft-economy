@@ -3,9 +3,33 @@
 You already have nginx running in its own LXC/VM on this Proxmox host, with
 80/443 forwarded on the router and a real domain + HTTPS. That replaces
 `deploy/cloudflared/` entirely - no need for a tunnel, just two more server
-blocks pointing at the two LXCs created by `deploy/proxmox/install-*.sh`.
+blocks (or two Proxy Hosts, if it's Nginx Proxy Manager - see below) pointing
+at the two LXCs created by `deploy/proxmox/install-*.sh`.
 
-## Steps (run on your existing nginx LXC/VM)
+## If it's Nginx Proxy Manager (Docker, web UI on port 81)
+
+Check first: `docker ps` on that LXC/VM - if you see an
+`nginx-proxy-manager` container (or the hostname is literally
+`nginxproxymanager`), you're on NPM, not plain nginx. NPM generates its own
+config internally from a SQLite DB - there's no `/etc/nginx/sites-available`
+to drop files into (that's why `curl -o /etc/nginx/sites-available/...`
+fails with "Failure writing output to destination": the directory doesn't
+exist on that container/host). Everything goes through its web UI instead:
+
+1. Open `http://<npm-ip>:81`, log in.
+2. **Hosts -> Proxy Hosts -> Add Proxy Host**, twice:
+   - `api.example.com` -> Scheme `http`, Forward Hostname/IP = supabase LXC's
+     IP, Forward Port `8000`, enable **Websockets Support** (Auth/Realtime
+     use it).
+   - `app.example.com` -> Scheme `http`, Forward Hostname/IP = app-edge LXC's
+     IP, Forward Port `80`.
+3. On each: **SSL** tab -> Request a new SSL Certificate (Let's Encrypt) ->
+   enable **Force SSL** -> Save.
+
+Skip the `sites-available`/`certbot` steps below entirely in this case - go
+straight to the "Result" section.
+
+## Steps (plain nginx, not NPM)
 
 ```bash
 # 1. Copy the two templates from the airsoft-economy repo and fill in
