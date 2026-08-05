@@ -70,6 +70,8 @@ echo
 echo "=== Done ==="
 echo "LXC $CTID IP: ${IP:-unknown} - web export served by Caddy on port 80."
 echo
-echo "Next: external access (Cloudflare Tunnel) - see deploy/cloudflared/README.md,"
-echo "or run its install one-liner:"
+echo "Next: external access."
+echo "Already have your own port-forwarded nginx + domain? See deploy/nginx/README.md"
+echo "(two server blocks: this LXC's IP for the web app, the supabase LXC's IP for the API)."
+echo "Otherwise, deploy/cloudflared/README.md sets up a tunnel instead - install one-liner:"
 echo '  bash -c "$(curl -fsSL '"${RAW_BASE}"'/deploy/cloudflared/install-cloudflared.sh)"'
