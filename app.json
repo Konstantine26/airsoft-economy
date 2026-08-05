@@ -36,7 +36,8 @@
           "photosPermission": "Allow $(PRODUCT_NAME) to access your photos to set your profile avatar"
         }
       ],
-      "expo-font"
+      "expo-font",
+      "expo-audio"
     ]
   }
 }

@@ -9,6 +9,7 @@ import { Card } from './Card';
 import { GameStagesList } from './GameStagesList';
 import { GameAttachmentsGrid } from './GameAttachmentsGrid';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
+import { TasksSection } from './TasksSection';
 import { colors, font, radii, spacing } from '../lib/theme';
 
 const POLYGON_TYPE_LABEL: Record<PolygonType, string> = {
@@ -190,6 +191,9 @@ export function BriefingScreen({ gameId }: Props) {
           ))}
         </View>
       )}
+
+      <Text style={styles.sectionTitle}>Задания</Text>
+      <TasksSection gameId={gameId} splitClaimable />
     </ScrollView>
   );
 }

@@ -23,6 +23,7 @@ const KIND_LABEL: Record<PersonalTransactionKind, string> = {
   team_to_participant: 'От команды',
   participant_to_team: 'В команду',
   participant_to_participant: 'Перевод',
+  task_reward: 'Награда за задание',
 };
 
 type Props = {

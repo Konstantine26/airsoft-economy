@@ -13,11 +13,12 @@ import { TeamCommanderScreen } from './TeamCommanderScreen';
 import { SideCommanderScreen } from './SideCommanderScreen';
 import { ParticipantScreen } from './ParticipantScreen';
 import { TeamsScreen } from './TeamsScreen';
+import { TraderScreen } from './TraderScreen';
 import { WalletScreen } from './WalletScreen';
 import { colors, font, spacing } from '../lib/theme';
 import type { Project } from '../lib/database.types';
 
-type TabKey = 'home' | 'briefing' | 'wallet' | 'economy' | 'team' | 'side' | 'organizer' | 'admin';
+type TabKey = 'home' | 'briefing' | 'wallet' | 'economy' | 'team' | 'side' | 'trader' | 'organizer' | 'admin';
 
 const AVATAR_BUCKET = 'avatars';
 
@@ -101,10 +102,18 @@ export function Dashboard() {
     if (isOrganizerOrAdmin) list.push({ key: 'economy', label: 'Экономика' });
     if (capabilities.commandedTeams.length > 0) list.push({ key: 'team', label: 'Моя команда' });
     if (capabilities.commandedSides.length > 0) list.push({ key: 'side', label: 'Моя сторона' });
+    if (capabilities.isTrader) list.push({ key: 'trader', label: 'Торговец' });
     if (isOrganizerOrAdmin) list.push({ key: 'organizer', label: 'Организатор' });
     if (profile?.role === 'admin') list.push({ key: 'admin', label: 'Админ' });
     return list;
-  }, [activeGameId, capabilities.commandedTeams, capabilities.commandedSides, capabilities.isOrganizer, profile]);
+  }, [
+    activeGameId,
+    capabilities.commandedTeams,
+    capabilities.commandedSides,
+    capabilities.isOrganizer,
+    capabilities.isTrader,
+    profile,
+  ]);
 
   if (!profile || capabilities.loading) {
     return (
@@ -174,6 +183,7 @@ export function Dashboard() {
           <TeamCommanderScreen teams={capabilities.commandedTeams} projectId={activeProjectId} />
         ) : null}
         {tab === 'side' ? <SideCommanderScreen sides={capabilities.commandedSides} /> : null}
+        {tab === 'trader' ? <TraderScreen traderGames={capabilities.traderGames} /> : null}
         {tab === 'organizer' ? <OrganizerScreen /> : null}
         {tab === 'admin' ? (
           <AdminScreen activeProjectId={activeProjectId} onProjectsChanged={loadEconomyProjects} />

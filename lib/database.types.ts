@@ -159,7 +159,8 @@ export type PersonalTransactionKind =
   | 'deposit'
   | 'team_to_participant'
   | 'participant_to_team'
-  | 'participant_to_participant';
+  | 'participant_to_participant'
+  | 'task_reward';
 
 export type PersonalTransaction = {
   id: string;
@@ -171,6 +172,53 @@ export type PersonalTransaction = {
   to_team_id: string | null;
   amount: number;
   note: string | null;
+  task_id: string | null;
+  created_at: string;
+};
+
+export type GameTrader = {
+  id: string;
+  game_id: string;
+  profile_id: string;
+  created_at: string;
+};
+
+export type GameTraderSide = {
+  game_trader_id: string;
+  side_id: string;
+};
+
+export type TaskVisibility = 'side' | 'team' | 'personal' | 'claimable';
+export type TaskStatus = 'open' | 'claimed' | 'completed' | 'cancelled';
+
+export type Task = {
+  id: string;
+  game_id: string;
+  title: string;
+  description: string | null;
+  visibility: TaskVisibility;
+  side_id: string;
+  team_id: string | null;
+  assignee_profile_id: string | null;
+  customer_profile_id: string;
+  reward: number | null;
+  status: TaskStatus;
+  created_by: string;
+  created_at: string;
+  completed_at: string | null;
+  completed_by: string | null;
+};
+
+export type TaskAttachmentKind = 'file' | 'image' | 'audio';
+
+export type TaskAttachment = {
+  id: string;
+  task_id: string;
+  kind: TaskAttachmentKind;
+  storage_path: string;
+  file_name: string;
+  content_type: string | null;
+  created_by: string | null;
   created_at: string;
 };
 
@@ -518,6 +566,107 @@ export type Database = {
           },
         ];
       };
+      game_traders: {
+        Row: GameTrader;
+        Insert: Partial<GameTrader> & { game_id: string; profile_id: string };
+        Update: Partial<GameTrader>;
+        Relationships: [
+          {
+            foreignKeyName: 'game_traders_game_id_fkey';
+            columns: ['game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'game_traders_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      game_trader_sides: {
+        Row: GameTraderSide;
+        Insert: Partial<GameTraderSide> & { game_trader_id: string; side_id: string };
+        Update: Partial<GameTraderSide>;
+        Relationships: [
+          {
+            foreignKeyName: 'game_trader_sides_game_trader_id_fkey';
+            columns: ['game_trader_id'];
+            referencedRelation: 'game_traders';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'game_trader_sides_side_id_fkey';
+            columns: ['side_id'];
+            referencedRelation: 'game_sides';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      tasks: {
+        Row: Task;
+        Insert: Partial<Task> & {
+          game_id: string;
+          title: string;
+          visibility: TaskVisibility;
+          side_id: string;
+          customer_profile_id: string;
+          created_by: string;
+        };
+        Update: Partial<Task>;
+        Relationships: [
+          {
+            foreignKeyName: 'tasks_game_id_fkey';
+            columns: ['game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_side_id_fkey';
+            columns: ['side_id'];
+            referencedRelation: 'game_sides';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_team_id_fkey';
+            columns: ['team_id'];
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_assignee_profile_id_fkey';
+            columns: ['assignee_profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'tasks_customer_profile_id_fkey';
+            columns: ['customer_profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      task_attachments: {
+        Row: TaskAttachment;
+        Insert: Partial<TaskAttachment> & { task_id: string; kind: TaskAttachmentKind; storage_path: string; file_name: string };
+        Update: Partial<TaskAttachment>;
+        Relationships: [
+          {
+            foreignKeyName: 'task_attachments_task_id_fkey';
+            columns: ['task_id'];
+            referencedRelation: 'tasks';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'task_attachments_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: Record<string, never>;
     Functions: {
@@ -576,6 +725,32 @@ export type Database = {
           p_note?: string | null;
         };
         Returns: PersonalTransaction;
+      };
+      claim_task: {
+        Args: {
+          p_task_id: string;
+        };
+        Returns: Task;
+      };
+      assign_task: {
+        Args: {
+          p_task_id: string;
+          p_profile_id: string;
+        };
+        Returns: Task;
+      };
+      cancel_task: {
+        Args: {
+          p_task_id: string;
+        };
+        Returns: Task;
+      };
+      complete_task: {
+        Args: {
+          p_task_id: string;
+          p_recipient_profile_id?: string | null;
+        };
+        Returns: Task;
       };
     };
   };

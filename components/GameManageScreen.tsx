@@ -9,6 +9,8 @@ import type {
   GameParticipant,
   GameSide,
   GameStage,
+  GameTrader,
+  GameTraderSide,
   Polygon,
   PolygonType,
   Profile,
@@ -23,6 +25,7 @@ import { Button } from './Button';
 import { TextField } from './TextField';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 import { ImageLightbox } from './ImageLightbox';
+import { TasksSection } from './TasksSection';
 import { colors, font, radii, spacing } from '../lib/theme';
 
 const ATTACHMENTS_BUCKET = 'game-attachments';
@@ -47,6 +50,8 @@ type ParticipantRow = GameParticipant & {
   effective_side_id: string | null;
 };
 
+type TraderRow = GameTrader & { full_name: string; side_ids: string[] };
+
 type Props = {
   gameId: string;
   onBack: () => void;
@@ -65,6 +70,10 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [newSideName, setNewSideName] = useState('');
 
+  const [traders, setTraders] = useState<TraderRow[]>([]);
+  const [newTraderProfileId, setNewTraderProfileId] = useState<string | null>(null);
+  const [newTraderSideIds, setNewTraderSideIds] = useState<string[]>([]);
+
   const [stages, setStages] = useState<GameStage[]>([]);
   const [newStageTitle, setNewStageTitle] = useState('');
   const [newStageDescription, setNewStageDescription] = useState('');
@@ -80,6 +89,19 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [editDescription, setEditDescription] = useState('');
   const [editGameType, setEditGameType] = useState<GameType | null>(null);
   const [editPolygonId, setEditPolygonId] = useState<string | null>(null);
+
+  const loadTraders = useCallback(async () => {
+    const { data } = await supabase
+      .from('game_traders')
+      .select('*, sides:game_trader_sides(side_id), profile:profiles(full_name)')
+      .eq('game_id', gameId);
+    const rows: TraderRow[] = ((data as any[]) ?? []).map((row) => ({
+      ...row,
+      full_name: row.profile?.full_name || '(без имени)',
+      side_ids: (row.sides ?? []).map((s: any) => s.side_id),
+    }));
+    setTraders(rows);
+  }, [gameId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,8 +142,10 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     }));
     setParticipants(rows);
 
+    await loadTraders();
+
     setLoading(false);
-  }, [gameId]);
+  }, [gameId, loadTraders]);
 
   useEffect(() => {
     load();
@@ -154,7 +178,8 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       effective_side_id: row.side_id ?? teamSideMap.get(row.team_id) ?? null,
     }));
     setParticipants(rows);
-  }, [gameId]);
+    await loadTraders();
+  }, [gameId, loadTraders]);
 
   const startEditCard = () => {
     if (!game) return;
@@ -354,6 +379,62 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       return;
     }
     reloadDetail();
+  };
+
+  const addTrader = async () => {
+    if (!game || !newTraderProfileId || newTraderSideIds.length === 0) return;
+    setError(null);
+    const { data, error } = await supabase
+      .from('game_traders')
+      .insert({ game_id: game.id, profile_id: newTraderProfileId })
+      .select('id')
+      .single();
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    const { error: sidesError } = await supabase
+      .from('game_trader_sides')
+      .insert(newTraderSideIds.map((sideId) => ({ game_trader_id: data.id, side_id: sideId })));
+    if (sidesError) {
+      setError(sidesError.message);
+      return;
+    }
+    setNewTraderProfileId(null);
+    setNewTraderSideIds([]);
+    loadTraders();
+  };
+
+  const removeTrader = async (trader: TraderRow) => {
+    setError(null);
+    const { error } = await supabase.from('game_traders').delete().eq('id', trader.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setTraders((prev) => prev.filter((t) => t.id !== trader.id));
+  };
+
+  const toggleTraderSide = async (trader: TraderRow, sideId: string) => {
+    setError(null);
+    if (trader.side_ids.includes(sideId)) {
+      const { error } = await supabase
+        .from('game_trader_sides')
+        .delete()
+        .eq('game_trader_id', trader.id)
+        .eq('side_id', sideId);
+      if (error) {
+        setError(error.message);
+        return;
+      }
+    } else {
+      const { error } = await supabase.from('game_trader_sides').insert({ game_trader_id: trader.id, side_id: sideId });
+      if (error) {
+        setError(error.message);
+        return;
+      }
+    }
+    loadTraders();
   };
 
   if (loading) {
@@ -584,6 +665,78 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
         onChangeText={setNewSideName}
       />
       <Button title="Добавить сторону" onPress={createSide} style={styles.addButtonSpacing} />
+
+      <Text style={styles.sectionTitle}>Торговцы</Text>
+      {traders.length === 0 ? <Text style={styles.label}>Торговцы пока не назначены</Text> : null}
+      <View style={styles.cardsList}>
+        {traders.map((trader) => (
+          <Card key={trader.id}>
+            <View style={styles.row}>
+              <Text style={styles.cardTitle}>{trader.full_name}</Text>
+              <Pressable onPress={() => removeTrader(trader)}>
+                <Text style={styles.deleteLink}>Удалить</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.label}>Стороны</Text>
+            <View style={styles.chips}>
+              {sides.map((side) => (
+                <Chip
+                  key={side.id}
+                  label={side.name}
+                  selected={trader.side_ids.includes(side.id)}
+                  onPress={() => toggleTraderSide(trader, side.id)}
+                />
+              ))}
+            </View>
+          </Card>
+        ))}
+      </View>
+
+      <Text style={styles.label}>Назначить торговца</Text>
+      <View style={styles.chips}>
+        {profiles
+          .filter((p) => !traders.some((t) => t.profile_id === p.id))
+          .map((p) => (
+            <Chip
+              key={p.id}
+              label={p.full_name || '(без имени)'}
+              selected={newTraderProfileId === p.id}
+              onPress={() => setNewTraderProfileId(p.id)}
+            />
+          ))}
+      </View>
+      {newTraderProfileId ? (
+        <>
+          <Text style={styles.label}>Стороны для торговца</Text>
+          {sides.length === 0 ? (
+            <Text style={styles.label}>В игре ещё нет ни одной стороны — сначала создайте её ниже</Text>
+          ) : (
+            <View style={styles.chips}>
+              {sides.map((side) => (
+                <Chip
+                  key={side.id}
+                  label={side.name}
+                  selected={newTraderSideIds.includes(side.id)}
+                  onPress={() =>
+                    setNewTraderSideIds((prev) =>
+                      prev.includes(side.id) ? prev.filter((id) => id !== side.id) : [...prev, side.id]
+                    )
+                  }
+                />
+              ))}
+            </View>
+          )}
+        </>
+      ) : null}
+      <Button
+        title="Добавить торговца"
+        onPress={addTrader}
+        disabled={!newTraderProfileId || newTraderSideIds.length === 0}
+        style={styles.addButtonSpacing}
+      />
+
+      <Text style={styles.sectionTitle}>Задания</Text>
+      <TasksSection gameId={game.id} isOrganizer />
 
       <Button title="Удалить игру" variant="danger" onPress={deleteGame} style={styles.dangerSpacing} />
 
