@@ -1,0 +1,10 @@
+[Unit]
+Description=Pull latest airsoft-economy and rebuild web export + OTA publish
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/airsoft-economy
+EnvironmentFile=-/etc/airsoft-economy/update.env
+ExecStart=/opt/airsoft-economy/deploy/app/update.sh
