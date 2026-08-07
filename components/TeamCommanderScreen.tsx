@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
+import type { Game, GameSide, Polygon, ProfileDirectoryEntry, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -21,7 +21,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
   const [teamBalance, setTeamBalance] = useState(0);
   const [roster, setRoster] = useState<RosterRow[]>([]);
-  const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
+  const [availableProfiles, setAvailableProfiles] = useState<ProfileDirectoryEntry[]>([]);
   const [games, setGames] = useState<GameWithProject[]>([]);
   const [activeGame, setActiveGame] = useState<GameWithProject | null>(null);
   const [sides, setSides] = useState<GameSide[]>([]);
@@ -44,7 +44,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
     rows.sort((a, b) => Number(b.profile_id === team.commander_id) - Number(a.profile_id === team.commander_id));
     setRoster(rows);
 
-    const { data: allProfiles } = await supabase.from('profiles').select('*');
+    const { data: allProfiles } = await supabase.from('profile_directory').select('*');
     const rosteredIds = new Set(rows.map((r) => r.profile_id));
     setAvailableProfiles((allProfiles ?? []).filter((p) => !rosteredIds.has(p.id)));
   }, []);
@@ -105,7 +105,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
     [activeTeam]
   );
 
-  const addMember = async (profile: Profile) => {
+  const addMember = async (profile: ProfileDirectoryEntry) => {
     setError(null);
     const { error } = await supabase
       .from('team_members')
@@ -290,7 +290,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
         {availableProfiles.map((p) => (
           <Pressable key={p.id} style={styles.addRow} onPress={() => addMember(p)}>
             <View style={styles.rosterIdentity}>
-              <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
+              <Avatar name={p.full_name} size={22} />
               <Text style={styles.rosterName}>{p.full_name || '(без имени)'}</Text>
             </View>
             <Text style={styles.addText}>+ Добавить</Text>

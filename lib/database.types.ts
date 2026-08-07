@@ -12,6 +12,15 @@ export type Profile = {
   created_at: string;
 };
 
+// Name-only public directory (see supabase/015_secure_transfers_and_profiles.sql)
+// used to let people invite someone onto a team/side/game before that person
+// shares a project with them -- the full `profiles` row (photo, participant
+// number, role) is scoped to admins, the owner, and project-mates.
+export type ProfileDirectoryEntry = {
+  id: string;
+  full_name: string;
+};
+
 export type Team = {
   id: string;
   name: string;
@@ -668,7 +677,12 @@ export type Database = {
         ];
       };
     };
-    Views: Record<string, never>;
+    Views: {
+      profile_directory: {
+        Row: ProfileDirectoryEntry;
+        Relationships: [];
+      };
+    };
     Functions: {
       transfer_funds: {
         Args: {

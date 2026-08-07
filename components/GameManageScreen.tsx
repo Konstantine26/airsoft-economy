@@ -13,7 +13,7 @@ import type {
   GameTraderSide,
   Polygon,
   PolygonType,
-  Profile,
+  ProfileDirectoryEntry,
   Project,
 } from '../lib/database.types';
 import { GAME_TYPES, GAME_TYPE_LABEL, type GameType } from '../lib/gameTypes';
@@ -64,7 +64,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
 
   const [game, setGame] = useState<GameWithRelations | null>(null);
   const [polygons, setPolygons] = useState<Polygon[]>([]);
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [profiles, setProfiles] = useState<ProfileDirectoryEntry[]>([]);
 
   const [sides, setSides] = useState<GameSide[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
@@ -110,7 +110,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       await Promise.all([
         supabase.from('games').select('*, project:projects(*), polygon:polygons(*)').eq('id', gameId).single(),
         supabase.from('polygons').select('*').order('name', { ascending: true }),
-        supabase.from('profiles').select('*').order('full_name', { ascending: true }),
+        supabase.from('profile_directory').select('*').order('full_name', { ascending: true }),
         supabase.from('game_sides').select('*').eq('game_id', gameId).order('name', { ascending: true }),
         supabase.from('game_team_sides').select('team_id, side_id').eq('game_id', gameId),
         supabase
