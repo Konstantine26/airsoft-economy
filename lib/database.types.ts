@@ -16,6 +16,7 @@ export type Team = {
   id: string;
   name: string;
   commander_id: string | null;
+  avatar_url: string | null;
   created_at: string;
 };
 
@@ -751,6 +752,13 @@ export type Database = {
           p_recipient_profile_id?: string | null;
         };
         Returns: Task;
+      };
+      set_team_avatar: {
+        Args: {
+          p_team_id: string;
+          p_avatar_url: string | null;
+        };
+        Returns: Team;
       };
     };
   };

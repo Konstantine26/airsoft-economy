@@ -161,7 +161,10 @@ export function ParticipantScreen({ ownMembership, activeProjectId, activeGameId
           end={{ x: 0.85, y: 1 }}
           style={styles.teamCard}
         >
-          <Text style={styles.teamCardTitle}>{ownMembership.team.name}</Text>
+          <View style={styles.teamCardHeader}>
+            <Avatar uri={ownMembership.team.avatar_url} name={ownMembership.team.name} size={40} />
+            <Text style={styles.teamCardTitle}>{ownMembership.team.name}</Text>
+          </View>
           <Text style={styles.teamCardBalance}>
             {teamBalance !== null ? `Баланс: ${teamBalance.toFixed(2)} ₽` : 'Нет проекта с включённой экономикой'}
           </Text>
@@ -263,6 +266,11 @@ const styles = StyleSheet.create({
     borderRadius: radii.xl,
     padding: spacing.lg,
     marginBottom: spacing.xl,
+  },
+  teamCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   teamCardTitle: {
     fontFamily: font.heading,

@@ -3,6 +3,7 @@ import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Tex
 import { supabase } from '../lib/supabase';
 import type { Team } from '../lib/database.types';
 import { TransferModal } from './TransferModal';
+import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { colors, font, radii, spacing } from '../lib/theme';
 
@@ -97,7 +98,10 @@ export function TeamsScreen({ projectId }: Props) {
               style={[styles.row, selected ? styles.rowSelected : styles.rowUnselected]}
               onPress={() => toggleTeamSelect(item.id)}
             >
-              <Text style={styles.teamName}>{item.name}</Text>
+              <View style={styles.teamIdentity}>
+                <Avatar uri={item.avatar_url} name={item.name} size={26} />
+                <Text style={styles.teamName}>{item.name}</Text>
+              </View>
               <Text style={styles.balance}>{item.balance.toFixed(2)} ₽</Text>
             </Pressable>
           );
@@ -166,6 +170,11 @@ const styles = StyleSheet.create({
   rowSelected: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.accentSoftBorder,
+  },
+  teamIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   teamName: {
     fontFamily: font.bodySemiBold,

@@ -11,6 +11,7 @@ type ParticipantEntry = { full_name: string; avatar_url: string | null; status: 
 type TeamWithRoster = {
   team_id: string;
   team_name: string;
+  team_avatar_url: string | null;
   participants: ParticipantEntry[];
 };
 
@@ -31,7 +32,10 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
         .select('*, project:projects(name), polygon:polygons(name)')
         .eq('id', side.game_id)
         .single(),
-      supabase.from('game_team_sides').select('team_id, side_id, team:teams(id, name)').eq('game_id', side.game_id),
+      supabase
+        .from('game_team_sides')
+        .select('team_id, side_id, team:teams(id, name, avatar_url)')
+        .eq('game_id', side.game_id),
       supabase
         .from('game_participants')
         .select('team_id, side_id, status, profile:profiles(full_name, avatar_url)')
@@ -44,9 +48,11 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
 
     const teamSideMap = new Map<string, string>();
     const teamNameMap = new Map<string, string>();
+    const teamAvatarMap = new Map<string, string | null>();
     for (const row of (teamSidesRes.data as any[]) ?? []) {
       teamSideMap.set(row.team_id, row.side_id);
       teamNameMap.set(row.team_id, row.team?.name ?? '');
+      teamAvatarMap.set(row.team_id, row.team?.avatar_url ?? null);
     }
 
     const byTeam = new Map<string, ParticipantEntry[]>();
@@ -65,6 +71,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
     const withRosters: TeamWithRoster[] = Array.from(byTeam.entries()).map(([teamId, participants]) => ({
       team_id: teamId,
       team_name: teamNameMap.get(teamId) ?? '',
+      team_avatar_url: teamAvatarMap.get(teamId) ?? null,
       participants,
     }));
 
@@ -102,7 +109,10 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
         <View style={styles.teamsList}>
           {teams.map((team) => (
             <Card key={team.team_id}>
-              <Text style={styles.cardTitle}>{team.team_name}</Text>
+              <View style={styles.teamHeader}>
+                <Avatar uri={team.team_avatar_url} name={team.team_name} size={24} />
+                <Text style={styles.cardTitle}>{team.team_name}</Text>
+              </View>
               {team.participants.length === 0 ? (
                 <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
               ) : (
@@ -147,11 +157,16 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginBottom: spacing.md,
   },
+  teamHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
   cardTitle: {
     fontFamily: font.bodyBold,
     fontSize: 14,
     color: colors.text,
-    marginBottom: spacing.sm,
   },
   participantRow: {
     flexDirection: 'row',

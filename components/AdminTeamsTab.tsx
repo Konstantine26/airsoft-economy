@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { supabase } from '../lib/supabase';
 import type { Profile, Team } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
+import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
@@ -140,6 +141,7 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
               </View>
             ) : (
               <View style={styles.row}>
+                <Avatar uri={team.avatar_url} name={team.name} size={30} />
                 <Text style={styles.cardTitle}>{team.name}</Text>
                 <Pressable onPress={() => startRename(team)}>
                   <Text style={styles.editText}>Переименовать</Text>

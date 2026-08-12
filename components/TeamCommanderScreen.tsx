@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
@@ -17,6 +18,8 @@ type Props = {
   projectId: string | null;
 };
 
+const TEAM_AVATAR_BUCKET = 'team-avatars';
+
 export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
   const [teamBalance, setTeamBalance] = useState(0);
@@ -29,6 +32,48 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [registeredProfiles, setRegisteredProfiles] = useState<Map<string, 'pending' | 'confirmed'>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+
+  const changeTeamAvatar = useCallback(async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Нет доступа к галерее');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+
+    setUploadingAvatar(true);
+    try {
+      const asset = result.assets[0];
+      const arrayBuffer = await fetch(asset.uri).then((res) => res.arrayBuffer());
+      const path = `${activeTeam.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from(TEAM_AVATAR_BUCKET)
+        .upload(path, arrayBuffer, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const publicUrl = supabase.storage.from(TEAM_AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
+      const avatarUrl = `${publicUrl}?v=${Date.now()}`;
+
+      const { error: rpcError } = await supabase.rpc('set_team_avatar', {
+        p_team_id: activeTeam.id,
+        p_avatar_url: avatarUrl,
+      });
+      if (rpcError) throw rpcError;
+
+      setActiveTeam((prev) => ({ ...prev, avatar_url: avatarUrl }));
+    } catch (e) {
+      Alert.alert('Не удалось загрузить фото', e instanceof Error ? e.message : undefined);
+    } finally {
+      setUploadingAvatar(false);
+    }
+  }, [activeTeam.id]);
 
   const loadRoster = useCallback(async (team: Team) => {
     const { data } = await supabase
@@ -208,7 +253,10 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <Text style={styles.sectionTitle}>Сторона команды {activeTeam.name}</Text>
+        <View style={styles.teamIdentityRowSmall}>
+          <Avatar uri={activeTeam.avatar_url} name={activeTeam.name} size={24} />
+          <Text style={[styles.sectionTitle, styles.sectionTitleInRow]}>Сторона команды {activeTeam.name}</Text>
+        </View>
         <View style={styles.chips}>
           {sides.map((side) => (
             <Chip key={side.id} label={side.name} selected={teamSideId === side.id} onPress={() => pickSide(side.id)} />
@@ -245,6 +293,22 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Моя команда</Text>
+
+      <View style={styles.teamIdentityRow}>
+        <Pressable onPress={changeTeamAvatar} disabled={uploadingAvatar}>
+          {uploadingAvatar ? (
+            <View style={[styles.avatarLoading, { width: 48, height: 48, borderRadius: 24 }]}>
+              <ActivityIndicator size="small" color={colors.accent} />
+            </View>
+          ) : (
+            <Avatar uri={activeTeam.avatar_url} name={activeTeam.name} size={48} />
+          )}
+        </Pressable>
+        <View>
+          <Text style={styles.teamName}>{activeTeam.name}</Text>
+          <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
+        </View>
+      </View>
 
       {teams.length > 1 ? (
         <View style={styles.chips}>
@@ -344,6 +408,39 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
     marginTop: 4,
     marginBottom: spacing.md,
+  },
+  teamIdentityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm + 2,
+    marginTop: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  teamIdentityRowSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: spacing.lg,
+  },
+  sectionTitleInRow: {
+    marginTop: 0,
+    marginBottom: 0,
+  },
+  teamName: {
+    fontFamily: font.heading,
+    fontSize: 17,
+    color: colors.text,
+  },
+  avatarHint: {
+    fontFamily: font.body,
+    fontSize: 11,
+    color: colors.textDim,
+    marginTop: 2,
+  },
+  avatarLoading: {
+    backgroundColor: colors.card,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   sectionTitle: {
     fontFamily: font.heading,
