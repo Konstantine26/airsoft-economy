@@ -41,7 +41,7 @@ export function TasksSection({ gameId, isOrganizer = false, traderSideIds = [], 
         .from('game_participants')
         .select('profile_id, team_id, side_id, profile:profiles(full_name)')
         .eq('game_id', gameId),
-      supabase.from('profiles').select('id, full_name'),
+      supabase.from('profile_directory').select('id, full_name'),
     ]);
 
     if (tasksRes.error) setError(tasksRes.error.message);
