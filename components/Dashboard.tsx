@@ -1,4 +1,5 @@
 import * as ImagePicker from 'expo-image-picker';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -19,24 +20,38 @@ import { WalletScreen } from './WalletScreen';
 import { colors, font, spacing } from '../lib/theme';
 import type { Project } from '../lib/database.types';
 
-type TabKey = 'home' | 'briefing' | 'wallet' | 'economy' | 'team' | 'side' | 'trader' | 'organizer' | 'admin';
+type RoleKey = 'admin' | 'organizer' | 'sideCommander' | 'teamCommander' | 'trader' | 'player';
+
+const ROLE_META: Record<RoleKey, { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = {
+  admin: { label: 'Админ', icon: 'shield-account-outline' },
+  organizer: { label: 'Организатор', icon: 'clipboard-list-outline' },
+  sideCommander: { label: 'Командующий стороной', icon: 'flag-outline' },
+  teamCommander: { label: 'Командир команды', icon: 'account-group-outline' },
+  trader: { label: 'Торговец', icon: 'storefront-outline' },
+  player: { label: 'Игрок', icon: 'home-outline' },
+};
+
+type PlayerTab = 'home' | 'briefing' | 'wallet';
+type OrganizerTab = 'overview' | 'games' | 'economy';
 
 const AVATAR_BUCKET = 'avatars';
 
 export function Dashboard() {
   const { profile, session, signOut, refreshProfile } = useAuth();
   const capabilities = useCapabilities();
-  const [tab, setTab] = useState<TabKey>('home');
-  const [economyProjects, setEconomyProjects] = useState<Project[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
+  const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
+  const [playerTab, setPlayerTab] = useState<PlayerTab>('home');
+  const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
 
   const activateGame = useCallback((game: { id: string; project_id: string }) => {
     setActiveGameId(game.id);
     setActiveProjectId(game.project_id);
-    setTab('briefing');
+    setPlayerTab('briefing');
   }, []);
 
   const changeAvatar = useCallback(async () => {
@@ -82,43 +97,41 @@ export function Dashboard() {
     }
   }, [session, refreshProfile]);
 
-  const loadEconomyProjects = useCallback(async () => {
-    const { data } = await supabase
-      .from('projects')
-      .select('*')
-      .eq('economy_enabled', true)
-      .order('name', { ascending: true });
+  const loadProjects = useCallback(async () => {
+    const { data } = await supabase.from('projects').select('*').order('name', { ascending: true });
     const rows = data ?? [];
-    setEconomyProjects(rows);
+    setProjects(rows);
     setActiveProjectId((prev) => (prev && rows.some((p) => p.id === prev) ? prev : (rows[0]?.id ?? null)));
   }, []);
 
   useEffect(() => {
-    loadEconomyProjects();
-  }, [loadEconomyProjects]);
+    loadProjects();
+  }, [loadProjects]);
 
-  const tabs = useMemo(() => {
-    const list: TabBarItem<TabKey>[] = [{ key: 'home', label: 'Главная', icon: 'home-outline' }];
-    if (activeGameId) list.push({ key: 'briefing', label: 'Брифинг', icon: 'note-text-outline' });
-    list.push({ key: 'wallet', label: 'Кошелёк', icon: 'wallet-outline' });
-    const isOrganizerOrAdmin = profile?.role === 'admin' || capabilities.isOrganizer;
-    if (isOrganizerOrAdmin) list.push({ key: 'economy', label: 'Экономика', icon: 'chart-line' });
-    if (capabilities.commandedTeams.length > 0) list.push({ key: 'team', label: 'Моя команда', icon: 'account-group-outline' });
-    if (capabilities.commandedSides.length > 0) list.push({ key: 'side', label: 'Моя сторона', icon: 'flag-outline' });
-    if (capabilities.isTrader) list.push({ key: 'trader', label: 'Торговец', icon: 'storefront-outline' });
-    if (isOrganizerOrAdmin) list.push({ key: 'organizer', label: 'Организатор', icon: 'clipboard-list-outline' });
-    if (profile?.role === 'admin') list.push({ key: 'admin', label: 'Админ', icon: 'shield-account-outline' });
-    return list;
-  }, [
-    activeGameId,
-    capabilities.commandedTeams,
-    capabilities.commandedSides,
-    capabilities.isOrganizer,
-    capabilities.isTrader,
-    profile,
-  ]);
+  const availableRoles = useMemo(() => {
+    const roles: RoleKey[] = [];
+    if (profile?.role === 'admin') roles.push('admin');
+    if (capabilities.isOrganizer) roles.push('organizer');
+    if (capabilities.commandedSides.length > 0) roles.push('sideCommander');
+    if (capabilities.commandedTeams.length > 0) roles.push('teamCommander');
+    if (capabilities.isTrader) roles.push('trader');
+    roles.push('player');
+    return roles;
+  }, [profile, capabilities.isOrganizer, capabilities.commandedSides, capabilities.commandedTeams, capabilities.isTrader]);
 
-  if (!profile || capabilities.loading) {
+  useEffect(() => {
+    setActiveRole((prev) => (prev && availableRoles.includes(prev) ? prev : (availableRoles[0] ?? null)));
+  }, [availableRoles]);
+
+  const activeProject = useMemo(() => projects.find((p) => p.id === activeProjectId) ?? null, [projects, activeProjectId]);
+  const economyProjectId = activeProject?.economy_enabled ? activeProjectId : null;
+
+  const roleItems = useMemo<TabBarItem<RoleKey>[]>(
+    () => availableRoles.map((role) => ({ key: role, label: ROLE_META[role].label, icon: ROLE_META[role].icon })),
+    [availableRoles]
+  );
+
+  if (!profile || capabilities.loading || !activeRole) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.accent} />
@@ -129,7 +142,17 @@ export function Dashboard() {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.headerIdentity}>
+        <View style={styles.brand}>
+          <View style={styles.brandGlyph}>
+            <Text style={styles.brandGlyphIcon}>⚔️</Text>
+          </View>
+          <Text style={styles.brandName}>Airsoft Economy</Text>
+        </View>
+
+        <View style={styles.headerRight}>
+          <View style={styles.notificationSlot} accessible={false}>
+            <MaterialCommunityIcons name="bell-outline" size={18} color={colors.textDim} />
+          </View>
           <Pressable
             onPress={changeAvatar}
             disabled={uploadingAvatar}
@@ -137,18 +160,17 @@ export function Dashboard() {
             accessibilityLabel="Сменить фото профиля"
           >
             {uploadingAvatar ? (
-              <View style={[styles.avatarLoading, { width: 32, height: 32, borderRadius: 16 }]}>
+              <View style={[styles.avatarLoading, { width: 30, height: 30, borderRadius: 15 }]}>
                 <ActivityIndicator size="small" color={colors.accent} />
               </View>
             ) : (
-              <Avatar uri={profile.avatar_url} name={profile.full_name} size={32} />
+              <Avatar uri={profile.avatar_url} name={profile.full_name} size={30} />
             )}
           </Pressable>
-          <Text style={styles.headerName}>{profile.full_name || 'Без имени'}</Text>
+          <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
+            <Text style={styles.signOut}>Выйти</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
-          <Text style={styles.signOut}>Выйти</Text>
-        </Pressable>
       </View>
 
       {avatarError ? (
@@ -157,12 +179,14 @@ export function Dashboard() {
         </View>
       ) : null}
 
-      {economyProjects.length > 0 ? (
+      {roleItems.length > 1 ? <TabBar items={roleItems} activeKey={activeRole} onChange={setActiveRole} /> : null}
+
+      {projects.length > 0 ? (
         <View style={styles.projectBar}>
           <Text style={styles.projectBarLabel}>Проект:</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
             <View style={styles.chips}>
-              {economyProjects.map((project) => (
+              {projects.map((project) => (
                 <Chip
                   key={project.id}
                   label={project.name}
@@ -175,28 +199,50 @@ export function Dashboard() {
         </View>
       ) : null}
 
-      <TabBar items={tabs} activeKey={tab} onChange={setTab} />
-
       <View style={styles.body}>
-        {tab === 'home' ? (
-          <ParticipantScreen
-            ownMembership={capabilities.ownMembership}
-            activeProjectId={activeProjectId}
-            activeGameId={activeGameId}
-            onActivateGame={activateGame}
-          />
+        {activeRole === 'player' ? (
+          <>
+            <View style={styles.subNav}>
+              <Chip label="Главная" selected={playerTab === 'home'} onPress={() => setPlayerTab('home')} />
+              {activeGameId ? (
+                <Chip label="Брифинг" selected={playerTab === 'briefing'} onPress={() => setPlayerTab('briefing')} />
+              ) : null}
+              <Chip label="Кошелёк" selected={playerTab === 'wallet'} onPress={() => setPlayerTab('wallet')} />
+            </View>
+            {playerTab === 'home' ? (
+              <ParticipantScreen
+                ownMembership={capabilities.ownMembership}
+                activeProjectId={activeProjectId}
+                activeGameId={activeGameId}
+                onActivateGame={activateGame}
+              />
+            ) : null}
+            {playerTab === 'briefing' && activeGameId ? <BriefingScreen gameId={activeGameId} /> : null}
+            {playerTab === 'wallet' ? <WalletScreen projectId={economyProjectId} /> : null}
+          </>
         ) : null}
-        {tab === 'briefing' && activeGameId ? <BriefingScreen gameId={activeGameId} /> : null}
-        {tab === 'wallet' ? <WalletScreen projectId={activeProjectId} /> : null}
-        {tab === 'economy' ? <TeamsScreen projectId={activeProjectId} /> : null}
-        {tab === 'team' ? (
-          <TeamCommanderScreen teams={capabilities.commandedTeams} projectId={activeProjectId} />
+
+        {activeRole === 'organizer' ? (
+          <>
+            <View style={styles.subNav}>
+              <Chip label="Обзор" selected={organizerTab === 'overview'} onPress={() => setOrganizerTab('overview')} />
+              <Chip label="Игры" selected={organizerTab === 'games'} onPress={() => setOrganizerTab('games')} />
+              <Chip label="Экономика проекта" selected={organizerTab === 'economy'} onPress={() => setOrganizerTab('economy')} />
+            </View>
+            {organizerTab === 'overview' || organizerTab === 'games' ? (
+              <OrganizerScreen view={organizerTab} />
+            ) : null}
+            {organizerTab === 'economy' ? <TeamsScreen projectId={economyProjectId} /> : null}
+          </>
         ) : null}
-        {tab === 'side' ? <SideCommanderScreen sides={capabilities.commandedSides} /> : null}
-        {tab === 'trader' ? <TraderScreen traderGames={capabilities.traderGames} /> : null}
-        {tab === 'organizer' ? <OrganizerScreen /> : null}
-        {tab === 'admin' ? (
-          <AdminScreen activeProjectId={activeProjectId} onProjectsChanged={loadEconomyProjects} />
+
+        {activeRole === 'teamCommander' ? (
+          <TeamCommanderScreen teams={capabilities.commandedTeams} projectId={economyProjectId} />
+        ) : null}
+        {activeRole === 'sideCommander' ? <SideCommanderScreen sides={capabilities.commandedSides} /> : null}
+        {activeRole === 'trader' ? <TraderScreen traderGames={capabilities.traderGames} /> : null}
+        {activeRole === 'admin' ? (
+          <AdminScreen activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
         ) : null}
       </View>
     </View>
@@ -218,21 +264,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 18,
+    paddingHorizontal: 16,
     paddingTop: 14,
     paddingBottom: 10,
     borderBottomWidth: 1,
     borderBottomColor: colors.cardBorder,
   },
-  headerIdentity: {
+  brand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
+    gap: 8,
+    flexShrink: 1,
   },
-  headerName: {
-    fontFamily: font.bodySemiBold,
-    fontSize: 14,
+  brandGlyph: {
+    width: 26,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: colors.accentSoft,
+    borderWidth: 1,
+    borderColor: colors.accentBorder,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  brandGlyphIcon: {
+    fontSize: 12,
+  },
+  brandName: {
+    fontFamily: font.heading,
+    fontSize: 15,
     color: colors.text,
+    flexShrink: 1,
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 0,
+  },
+  notificationSlot: {
+    padding: 2,
   },
   avatarLoading: {
     backgroundColor: colors.card,
@@ -273,6 +343,13 @@ const styles = StyleSheet.create({
   chips: {
     flexDirection: 'row',
     gap: 8,
+  },
+  subNav: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
   },
   body: {
     flex: 1,
