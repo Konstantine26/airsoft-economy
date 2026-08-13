@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from './Button';
 import { TextField } from './TextField';
-import { colors, font, radii, spacing } from '../lib/theme';
+import { colors, font, spacing } from '../lib/theme';
 
 export function ForceChangePasswordScreen() {
   const { session, signOut, refreshProfile } = useAuth();
@@ -61,26 +62,25 @@ export function ForceChangePasswordScreen() {
 
       <TextField
         style={styles.input}
-        placeholder="Новый пароль"
+        label="Новый пароль"
+        placeholder="Не короче 8 символов"
         value={password}
         onChangeText={setPassword}
         secureTextEntry
       />
       <TextField
         style={styles.input}
-        placeholder="Повторите пароль"
+        label="Повторите пароль"
+        placeholder="Ещё раз"
         value={confirmPassword}
         onChangeText={setConfirmPassword}
         secureTextEntry
+        error={error}
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      <Button title="Сохранить" onPress={handleSubmit} loading={submitting} style={styles.submitButton} />
 
-      <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
-        {submitting ? <ActivityIndicator color={colors.onAccent} /> : <Text style={styles.submitButtonText}>Сохранить</Text>}
-      </Pressable>
-
-      <Pressable onPress={signOut}>
+      <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
         <Text style={styles.switchText}>Выйти</Text>
       </Pressable>
     </View>
@@ -127,24 +127,9 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: spacing.sm + 2,
   },
-  error: {
-    fontFamily: font.body,
-    color: colors.danger,
-    marginBottom: spacing.md,
-    textAlign: 'center',
-  },
   submitButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: 13,
-    alignItems: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.md,
-  },
-  submitButtonText: {
-    fontFamily: font.heading,
-    color: colors.onAccent,
-    fontSize: 15,
   },
   switchText: {
     fontFamily: font.body,

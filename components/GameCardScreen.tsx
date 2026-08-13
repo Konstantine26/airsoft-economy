@@ -287,7 +287,13 @@ export function GameCardScreen({ gameId, ownMembership, onClose }: Props) {
       ) : null}
 
       <Text style={styles.sectionTitle}>Регистрация</Text>
-      <Pressable style={styles.checkboxRow} onPress={() => setRulesAccepted((v) => !v)}>
+      <Pressable
+        style={styles.checkboxRow}
+        onPress={() => setRulesAccepted((v) => !v)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: rulesAccepted }}
+        accessibilityLabel="Ознакомлен и согласен с правилами игры"
+      >
         <View style={[styles.checkbox, rulesAccepted && styles.checkboxChecked]} />
         <Text style={styles.checkboxLabel}>Ознакомлен и согласен с правилами игры</Text>
       </Pressable>

@@ -1,7 +1,7 @@
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Polygon, PolygonMap, PolygonType } from '../lib/database.types';
 import { ImageLightbox } from './ImageLightbox';
@@ -34,6 +34,7 @@ function isImage(contentType: string | null, fileName: string) {
 export function PolygonsScreen() {
   const [polygons, setPolygons] = useState<Polygon[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Polygon | null>(null);
   const [maps, setMaps] = useState<PolygonMap[]>([]);
@@ -67,6 +68,12 @@ export function PolygonsScreen() {
 
   useEffect(() => {
     loadPolygons();
+  }, [loadPolygons]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPolygons();
+    setRefreshing(false);
   }, [loadPolygons]);
 
   const loadMaps = useCallback(async (polygon: Polygon) => {
@@ -237,16 +244,16 @@ export function PolygonsScreen() {
         {editing ? (
           <>
             <Text style={styles.sectionTitle}>Редактирование полигона</Text>
-            <TextField style={styles.input} placeholder="Название" value={editName} onChangeText={setEditName} />
-            <TextField style={styles.input} placeholder="Страна" value={editCountry} onChangeText={setEditCountry} />
-            <TextField style={styles.input} placeholder="Регион" value={editRegion} onChangeText={setEditRegion} />
+            <TextField style={styles.input} label="Название" value={editName} onChangeText={setEditName} />
+            <TextField style={styles.input} label="Страна" value={editCountry} onChangeText={setEditCountry} />
+            <TextField style={styles.input} label="Регион" value={editRegion} onChangeText={setEditRegion} />
             <TextField
               style={styles.input}
-              placeholder="Населённый пункт"
+              label="Населённый пункт"
               value={editCity}
               onChangeText={setEditCity}
             />
-            <TextField style={styles.input} placeholder="Адрес" value={editAddress} onChangeText={setEditAddress} />
+            <TextField style={styles.input} label="Адрес" value={editAddress} onChangeText={setEditAddress} />
 
             <Text style={styles.label}>Тип полигона</Text>
             <View style={styles.chips}>
@@ -318,7 +325,11 @@ export function PolygonsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Text style={styles.title}>Полигоны</Text>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -343,11 +354,11 @@ export function PolygonsScreen() {
       </View>
 
       <Text style={styles.sectionTitle}>Новый полигон</Text>
-      <TextField style={styles.input} placeholder="Название" value={name} onChangeText={setName} />
-      <TextField style={styles.input} placeholder="Страна" value={country} onChangeText={setCountry} />
-      <TextField style={styles.input} placeholder="Регион" value={region} onChangeText={setRegion} />
-      <TextField style={styles.input} placeholder="Населённый пункт" value={city} onChangeText={setCity} />
-      <TextField style={styles.input} placeholder="Адрес" value={address} onChangeText={setAddress} />
+      <TextField style={styles.input} label="Название" value={name} onChangeText={setName} />
+      <TextField style={styles.input} label="Страна" value={country} onChangeText={setCountry} />
+      <TextField style={styles.input} label="Регион" value={region} onChangeText={setRegion} />
+      <TextField style={styles.input} label="Населённый пункт" value={city} onChangeText={setCity} />
+      <TextField style={styles.input} label="Адрес" value={address} onChangeText={setAddress} />
 
       <Text style={styles.label}>Тип полигона</Text>
       <View style={styles.chips}>

@@ -42,7 +42,12 @@ export function PolygonMapThumbnails({ polygonId }: { polygonId: string }) {
   return (
     <View style={styles.row}>
       {maps.map((m) => (
-        <Pressable key={m.id} onPress={() => setLightboxUri(publicUrl(m.storage_path))}>
+        <Pressable
+          key={m.id}
+          onPress={() => setLightboxUri(publicUrl(m.storage_path))}
+          accessibilityRole="button"
+          accessibilityLabel="Открыть карту полигона"
+        >
           <Image source={{ uri: publicUrl(m.storage_path) }} style={styles.thumb} />
         </Pressable>
       ))}

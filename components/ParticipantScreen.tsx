@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Game, Polygon, Project, Team, TeamMember } from '../lib/database.types';
@@ -32,6 +32,7 @@ export function ParticipantScreen({ ownMembership, activeProjectId, activeGameId
   const [teamBalance, setTeamBalance] = useState<number | null>(null);
   const [confirmedGames, setConfirmedGames] = useState<ConfirmedGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [openGameId, setOpenGameId] = useState<string | null>(null);
 
   const loadProjects = useCallback(async () => {
@@ -94,6 +95,12 @@ export function ParticipantScreen({ ownMembership, activeProjectId, activeGameId
     loadConfirmedGames();
   }, [loadProjects, loadRoster, loadTeamBalance, loadConfirmedGames]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadProjects(), loadRoster(), loadTeamBalance(), loadConfirmedGames()]);
+    setRefreshing(false);
+  }, [loadProjects, loadRoster, loadTeamBalance, loadConfirmedGames]);
+
   const toggleProject = async (project: Project) => {
     if (expandedProjectId === project.id) {
       setExpandedProjectId(null);
@@ -124,7 +131,11 @@ export function ParticipantScreen({ ownMembership, activeProjectId, activeGameId
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       {confirmedGames.length > 0 ? (
         <>
           <Text style={styles.title}>Мои игры</Text>

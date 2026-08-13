@@ -469,22 +469,24 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       {editingCard ? (
         <>
           <Text style={styles.sectionTitle}>Карточка игры</Text>
-          <TextField style={styles.input} placeholder="Название" value={editName} onChangeText={setEditName} />
+          <TextField style={styles.input} label="Название" value={editName} onChangeText={setEditName} />
           <TextField
             style={styles.input}
-            placeholder="Дата начала (напр. 2026-08-01 10:00)"
+            label="Дата начала"
+            placeholder="Напр. 2026-08-01 10:00"
             value={editStartsAt}
             onChangeText={setEditStartsAt}
           />
           <TextField
             style={styles.input}
-            placeholder="Дата окончания (напр. 2026-08-01 18:00)"
+            label="Дата окончания"
+            placeholder="Напр. 2026-08-01 18:00"
             value={editEndsAt}
             onChangeText={setEditEndsAt}
           />
           <TextField
             style={[styles.input, styles.textArea]}
-            placeholder="Описание сценария игры"
+            label="Описание сценария"
             value={editDescription}
             onChangeText={setEditDescription}
             multiline
@@ -554,10 +556,11 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
           </Card>
         ))}
       </View>
-      <TextField style={styles.input} placeholder="Название этапа" value={newStageTitle} onChangeText={setNewStageTitle} />
+      <TextField style={styles.input} label="Название этапа" value={newStageTitle} onChangeText={setNewStageTitle} />
       <TextField
         style={styles.input}
-        placeholder="Описание этапа (необязательно)"
+        label="Описание этапа"
+        placeholder="Необязательно"
         value={newStageDescription}
         onChangeText={setNewStageDescription}
       />
@@ -660,7 +663,8 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       <Text style={styles.sectionTitle}>Новая сторона</Text>
       <TextField
         style={styles.input}
-        placeholder="Название (напр. Красные)"
+        label="Название стороны"
+        placeholder="Напр. Красные"
         value={newSideName}
         onChangeText={setNewSideName}
       />

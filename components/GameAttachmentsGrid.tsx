@@ -22,7 +22,11 @@ export function GameAttachmentsGrid({ attachments }: { attachments: GameAttachme
       {attachments.map((a) => (
         <View key={a.id} style={styles.card}>
           {isImageFile(a.content_type, a.file_name) ? (
-            <Pressable onPress={() => setLightboxUri(publicAttachmentUrl(a.storage_path))}>
+            <Pressable
+              onPress={() => setLightboxUri(publicAttachmentUrl(a.storage_path))}
+              accessibilityRole="button"
+              accessibilityLabel={`Открыть изображение ${a.file_name}`}
+            >
               <Image source={{ uri: publicAttachmentUrl(a.storage_path) }} style={styles.image} />
             </Pressable>
           ) : (

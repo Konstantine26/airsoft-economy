@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
@@ -32,6 +32,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [teamSideId, setTeamSideId] = useState<string | null>(null);
   const [registeredProfiles, setRegisteredProfiles] = useState<Map<string, 'pending' | 'confirmed'>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
@@ -125,6 +126,12 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   useEffect(() => {
     setLoading(true);
     Promise.all([loadRoster(activeTeam), loadGames(), loadBalance()]).finally(() => setLoading(false));
+  }, [activeTeam, loadRoster, loadGames, loadBalance]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([loadRoster(activeTeam), loadGames(), loadBalance()]);
+    setRefreshing(false);
   }, [activeTeam, loadRoster, loadGames, loadBalance]);
 
   const openGame = useCallback(
@@ -246,7 +253,11 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
 
   if (activeGame) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
         <Pressable onPress={() => setActiveGame(null)}>
           <Text style={styles.back}>‹ Игры</Text>
         </Pressable>
@@ -293,7 +304,11 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Text style={styles.title}>Моя команда</Text>
 
       <View style={styles.teamIdentityRow}>

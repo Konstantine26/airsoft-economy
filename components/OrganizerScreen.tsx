@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import type { Game, Polygon, Project } from '../lib/database.types';
@@ -14,6 +14,7 @@ export function OrganizerScreen() {
   const isAdmin = profile?.role === 'admin';
 
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [allGames, setAllGames] = useState<GameWithRelations[]>([]);
@@ -21,9 +22,8 @@ export function OrganizerScreen() {
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
 
-  const loadAccessible = useCallback(async () => {
+  const fetchGames = useCallback(async () => {
     if (!profile) return;
-    setLoading(true);
     setError(null);
 
     let gameIds: string[] | null = null;
@@ -45,7 +45,6 @@ export function OrganizerScreen() {
 
     if (gameIds !== null && gameIds.length === 0) {
       setAllGames([]);
-      setLoading(false);
       return;
     }
 
@@ -58,12 +57,18 @@ export function OrganizerScreen() {
     const { data, error: gamesError } = await query;
     if (gamesError) setError(gamesError.message);
     setAllGames((data as GameWithRelations[]) ?? []);
-    setLoading(false);
   }, [profile, isAdmin]);
 
   useEffect(() => {
-    loadAccessible();
-  }, [loadAccessible]);
+    setLoading(true);
+    fetchGames().finally(() => setLoading(false));
+  }, [fetchGames]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchGames();
+    setRefreshing(false);
+  }, [fetchGames]);
 
   const projects = (() => {
     const map = new Map<string, Project>();
@@ -92,7 +97,7 @@ export function OrganizerScreen() {
         onBack={() => setSelectedGameId(null)}
         onDeleted={() => {
           setSelectedGameId(null);
-          loadAccessible();
+          fetchGames();
         }}
       />
     );
@@ -100,7 +105,11 @@ export function OrganizerScreen() {
 
   if (selectedProject) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+      >
         <Pressable onPress={() => setSelectedProject(null)}>
           <Text style={styles.back}>‹ Проекты</Text>
         </Pressable>
@@ -129,7 +138,11 @@ export function OrganizerScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Text style={styles.title}>Организатор</Text>
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

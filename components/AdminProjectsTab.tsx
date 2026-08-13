@@ -326,14 +326,20 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
 
         {editingProject ? (
           <>
-            <TextField style={styles.input} placeholder="Название" value={editName} onChangeText={setEditName} />
+            <TextField style={styles.input} label="Название" value={editName} onChangeText={setEditName} />
             <TextField
               style={styles.input}
-              placeholder="Описание"
+              label="Описание"
               value={editDescription}
               onChangeText={setEditDescription}
             />
-            <Pressable style={styles.checkboxRow} onPress={() => setEditEconomyEnabled((v) => !v)}>
+            <Pressable
+              style={styles.checkboxRow}
+              onPress={() => setEditEconomyEnabled((v) => !v)}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: editEconomyEnabled }}
+              accessibilityLabel="Ведение экономики"
+            >
               <View style={[styles.checkbox, editEconomyEnabled && styles.checkboxChecked]} />
               <Text style={styles.checkboxLabel}>Ведение экономики</Text>
             </Pressable>
@@ -425,22 +431,25 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
         </View>
 
         <Text style={styles.sectionTitle}>Новая игра</Text>
-        <TextField style={styles.input} placeholder="Название игры" value={newGameName} onChangeText={setNewGameName} />
+        <TextField style={styles.input} label="Название игры" value={newGameName} onChangeText={setNewGameName} />
         <TextField
           style={styles.input}
-          placeholder="Дата начала (необязательно, напр. 2026-08-01 10:00)"
+          label="Дата начала"
+          placeholder="Необязательно, напр. 2026-08-01 10:00"
           value={newGameStartsAt}
           onChangeText={setNewGameStartsAt}
         />
         <TextField
           style={styles.input}
-          placeholder="Дата окончания (необязательно, напр. 2026-08-01 18:00)"
+          label="Дата окончания"
+          placeholder="Необязательно, напр. 2026-08-01 18:00"
           value={newGameEndsAt}
           onChangeText={setNewGameEndsAt}
         />
         <TextField
           style={[styles.input, styles.textArea]}
-          placeholder="Описание сценария игры (необязательно)"
+          label="Описание сценария"
+          placeholder="Необязательно"
           value={newGameDescription}
           onChangeText={setNewGameDescription}
           multiline
@@ -489,17 +498,24 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
       <Text style={styles.sectionTitle}>Новый проект</Text>
       <TextField
         style={styles.input}
-        placeholder="Название проекта"
+        label="Название проекта"
         value={newProjectName}
         onChangeText={setNewProjectName}
       />
       <TextField
         style={styles.input}
-        placeholder="Описание (необязательно)"
+        label="Описание"
+        placeholder="Необязательно"
         value={newProjectDescription}
         onChangeText={setNewProjectDescription}
       />
-      <Pressable style={styles.checkboxRow} onPress={() => setNewProjectEconomyEnabled((v) => !v)}>
+      <Pressable
+        style={styles.checkboxRow}
+        onPress={() => setNewProjectEconomyEnabled((v) => !v)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: newProjectEconomyEnabled }}
+        accessibilityLabel="Ведение экономики"
+      >
         <View style={[styles.checkbox, newProjectEconomyEnabled && styles.checkboxChecked]} />
         <Text style={styles.checkboxLabel}>Ведение экономики</Text>
       </Pressable>

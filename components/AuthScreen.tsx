@@ -52,7 +52,8 @@ export function AuthScreen() {
       {mode === 'signUp' ? (
         <TextField
           style={styles.input}
-          placeholder="Имя"
+          label="Имя"
+          placeholder="Как вас называть"
           value={fullName}
           onChangeText={setFullName}
           autoCapitalize="words"
@@ -61,7 +62,8 @@ export function AuthScreen() {
 
       <TextField
         style={styles.input}
-        placeholder="Email"
+        label="Email"
+        placeholder="you@example.com"
         value={email}
         onChangeText={setEmail}
         autoCapitalize="none"
@@ -69,7 +71,8 @@ export function AuthScreen() {
       />
       <TextField
         style={styles.input}
-        placeholder="Пароль"
+        label="Пароль"
+        placeholder="••••••••"
         value={password}
         onChangeText={setPassword}
         secureTextEntry

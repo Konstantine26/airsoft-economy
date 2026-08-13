@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Profile, Team } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
@@ -20,13 +20,13 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [balances, setBalances] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newTeamName, setNewTeamName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
 
   const load = useCallback(async () => {
-    setLoading(true);
     const [teamsRes, profilesRes, balancesRes] = await Promise.all([
       supabase.from('teams').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').order('full_name', { ascending: true }),
@@ -38,11 +38,17 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
     setTeams(teamsRes.data ?? []);
     setProfiles(profilesRes.data ?? []);
     setBalances(new Map((balancesRes.data ?? []).map((row) => [row.team_id, row.balance])));
-    setLoading(false);
   }, [activeProjectId]);
 
   useEffect(() => {
-    load();
+    setLoading(true);
+    load().finally(() => setLoading(false));
+  }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   }, [load]);
 
   const createTeam = async () => {
@@ -118,7 +124,11 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!activeProjectId ? (
         <Text style={styles.label}>
@@ -133,10 +143,10 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
             {editingId === team.id ? (
               <View style={styles.row}>
                 <TextField style={styles.flexInput} value={editingName} onChangeText={setEditingName} />
-                <Pressable onPress={() => saveRename(team)}>
+                <Pressable onPress={() => saveRename(team)} accessibilityRole="button" accessibilityLabel="Сохранить название">
                   <Text style={styles.saveText}>Сохранить</Text>
                 </Pressable>
-                <Pressable onPress={() => setEditingId(null)}>
+                <Pressable onPress={() => setEditingId(null)} accessibilityRole="button" accessibilityLabel="Отменить переименование">
                   <Text style={styles.cancelText}>Отмена</Text>
                 </Pressable>
               </View>
@@ -144,10 +154,10 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
               <View style={styles.row}>
                 <Avatar uri={team.avatar_url} name={team.name} size={30} />
                 <Text style={styles.cardTitle}>{team.name}</Text>
-                <Pressable onPress={() => startRename(team)}>
+                <Pressable onPress={() => startRename(team)} accessibilityRole="button" accessibilityLabel={`Переименовать команду ${team.name}`}>
                   <Text style={styles.editText}>Переименовать</Text>
                 </Pressable>
-                <Pressable onPress={() => deleteTeam(team)}>
+                <Pressable onPress={() => deleteTeam(team)} accessibilityRole="button" accessibilityLabel={`Удалить команду ${team.name}`}>
                   <Text style={styles.deleteText}>Удалить</Text>
                 </Pressable>
               </View>

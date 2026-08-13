@@ -189,10 +189,11 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Новое задание</Text>
 
-        <TextField style={styles.input} placeholder="Название" value={title} onChangeText={setTitle} />
+        <TextField style={styles.input} label="Название" value={title} onChangeText={setTitle} />
         <TextField
           style={[styles.input, styles.textArea]}
-          placeholder="Описание (необязательно)"
+          label="Описание"
+          placeholder="Необязательно"
           value={description}
           onChangeText={setDescription}
           multiline
@@ -272,7 +273,8 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
 
         <TextField
           style={styles.input}
-          placeholder="Вознаграждение (необязательно)"
+          label="Вознаграждение, ₽"
+          placeholder="Необязательно"
           value={reward}
           onChangeText={setReward}
           keyboardType="decimal-pad"

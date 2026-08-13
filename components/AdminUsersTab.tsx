@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Profile, Role } from '../lib/database.types';
 import { AmountForm } from './AmountForm';
@@ -23,10 +23,10 @@ export function AdminUsersTab({ activeProjectId }: Props) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [balances, setBalances] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     const [profilesRes, balancesRes] = await Promise.all([
       supabase.from('profiles').select('*').order('full_name', { ascending: true }),
       activeProjectId
@@ -36,11 +36,17 @@ export function AdminUsersTab({ activeProjectId }: Props) {
     if (profilesRes.error) setError(profilesRes.error.message);
     setProfiles(profilesRes.data ?? []);
     setBalances(new Map((balancesRes.data ?? []).map((row) => [row.profile_id, row.balance])));
-    setLoading(false);
   }, [activeProjectId]);
 
   useEffect(() => {
-    load();
+    setLoading(true);
+    load().finally(() => setLoading(false));
+  }, [load]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
   }, [load]);
 
   const setRole = async (profileId: string, role: Role) => {
@@ -77,7 +83,11 @@ export function AdminUsersTab({ activeProjectId }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {!activeProjectId ? (
         <Text style={styles.label}>

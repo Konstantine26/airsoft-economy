@@ -15,6 +15,7 @@ export function TextField({ label, error, containerStyle, style, onFocus, onBlur
     <TextInput
       placeholderTextColor={colors.textDim}
       {...rest}
+      accessibilityLabel={rest.accessibilityLabel ?? label}
       onFocus={(e) => {
         setFocused(true);
         onFocus?.(e);

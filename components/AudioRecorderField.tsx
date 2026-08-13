@@ -70,6 +70,8 @@ export function AudioRecorderField({ value, onChange }: Props) {
           <Pressable
             style={styles.playButton}
             onPress={() => (playerStatus.playing ? player.pause() : player.play())}
+            accessibilityRole="button"
+            accessibilityLabel={playerStatus.playing ? 'Пауза' : 'Воспроизвести'}
           >
             <Text style={styles.playButtonText}>{playerStatus.playing ? '⏸' : '▶'}</Text>
           </Pressable>

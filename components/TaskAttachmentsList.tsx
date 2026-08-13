@@ -25,7 +25,12 @@ export function TaskAttachmentsList({ attachments }: { attachments: TaskAttachme
       {images.length > 0 ? (
         <View style={styles.imageGrid}>
           {images.map((a) => (
-            <Pressable key={a.id} onPress={() => setLightboxUri(publicUrl(a.storage_path))}>
+            <Pressable
+              key={a.id}
+              onPress={() => setLightboxUri(publicUrl(a.storage_path))}
+              accessibilityRole="button"
+              accessibilityLabel="Открыть изображение"
+            >
               <Image source={{ uri: publicUrl(a.storage_path) }} style={styles.image} />
             </Pressable>
           ))}
@@ -54,7 +59,12 @@ function AudioAttachmentRow({ attachment }: { attachment: TaskAttachment }) {
   const player = useAudioPlayer(publicUrl(attachment.storage_path));
   const status = useAudioPlayerStatus(player);
   return (
-    <Pressable style={styles.audioRow} onPress={() => (status.playing ? player.pause() : player.play())}>
+    <Pressable
+      style={styles.audioRow}
+      onPress={() => (status.playing ? player.pause() : player.play())}
+      accessibilityRole="button"
+      accessibilityLabel={status.playing ? 'Пауза' : 'Воспроизвести голосовое сообщение'}
+    >
       <View style={styles.playButton}>
         <Text style={styles.playButtonText}>{status.playing ? '⏸' : '▶'}</Text>
       </View>

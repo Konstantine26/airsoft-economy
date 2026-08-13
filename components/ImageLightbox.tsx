@@ -9,11 +9,11 @@ type Props = {
 export function ImageLightbox({ uri, onClose }: Props) {
   return (
     <Modal visible={!!uri} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.backdrop} onPress={onClose}>
-        <Pressable style={styles.imageWrap} onPress={() => {}}>
+      <Pressable style={styles.backdrop} onPress={onClose} accessibilityRole="button" accessibilityLabel="Закрыть просмотр изображения">
+        <Pressable style={styles.imageWrap} onPress={() => {}} accessible={false}>
           {uri ? <Image source={{ uri }} style={styles.image} resizeMode="contain" /> : null}
         </Pressable>
-        <Pressable style={styles.closeButton} onPress={onClose} hitSlop={12}>
+        <Pressable style={styles.closeButton} onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Закрыть">
           <Text style={styles.closeText}>✕</Text>
         </Pressable>
       </Pressable>
