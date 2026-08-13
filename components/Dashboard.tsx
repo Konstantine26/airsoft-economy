@@ -6,6 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { Avatar } from './Avatar';
 import { Chip } from './Chip';
+import { TabBar, type TabBarItem } from './TabBar';
 import { AdminScreen } from './AdminScreen';
 import { BriefingScreen } from './BriefingScreen';
 import { OrganizerScreen } from './OrganizerScreen';
@@ -97,16 +98,16 @@ export function Dashboard() {
   }, [loadEconomyProjects]);
 
   const tabs = useMemo(() => {
-    const list: { key: TabKey; label: string }[] = [{ key: 'home', label: 'Главная' }];
-    if (activeGameId) list.push({ key: 'briefing', label: 'Брифинг' });
-    list.push({ key: 'wallet', label: 'Кошелёк' });
+    const list: TabBarItem<TabKey>[] = [{ key: 'home', label: 'Главная', icon: 'home-outline' }];
+    if (activeGameId) list.push({ key: 'briefing', label: 'Брифинг', icon: 'note-text-outline' });
+    list.push({ key: 'wallet', label: 'Кошелёк', icon: 'wallet-outline' });
     const isOrganizerOrAdmin = profile?.role === 'admin' || capabilities.isOrganizer;
-    if (isOrganizerOrAdmin) list.push({ key: 'economy', label: 'Экономика' });
-    if (capabilities.commandedTeams.length > 0) list.push({ key: 'team', label: 'Моя команда' });
-    if (capabilities.commandedSides.length > 0) list.push({ key: 'side', label: 'Моя сторона' });
-    if (capabilities.isTrader) list.push({ key: 'trader', label: 'Торговец' });
-    if (isOrganizerOrAdmin) list.push({ key: 'organizer', label: 'Организатор' });
-    if (profile?.role === 'admin') list.push({ key: 'admin', label: 'Админ' });
+    if (isOrganizerOrAdmin) list.push({ key: 'economy', label: 'Экономика', icon: 'chart-line' });
+    if (capabilities.commandedTeams.length > 0) list.push({ key: 'team', label: 'Моя команда', icon: 'account-group-outline' });
+    if (capabilities.commandedSides.length > 0) list.push({ key: 'side', label: 'Моя сторона', icon: 'flag-outline' });
+    if (capabilities.isTrader) list.push({ key: 'trader', label: 'Торговец', icon: 'storefront-outline' });
+    if (isOrganizerOrAdmin) list.push({ key: 'organizer', label: 'Организатор', icon: 'clipboard-list-outline' });
+    if (profile?.role === 'admin') list.push({ key: 'admin', label: 'Админ', icon: 'shield-account-outline' });
     return list;
   }, [
     activeGameId,
@@ -174,11 +175,7 @@ export function Dashboard() {
         </View>
       ) : null}
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
-        {tabs.map((t) => (
-          <Chip key={t.key} label={t.label} selected={tab === t.key} onPress={() => setTab(t.key)} />
-        ))}
-      </ScrollView>
+      <TabBar items={tabs} activeKey={tab} onChange={setTab} />
 
       <View style={styles.body}>
         {tab === 'home' ? (
@@ -272,17 +269,6 @@ const styles = StyleSheet.create({
     fontFamily: font.body,
     fontSize: 12,
     color: colors.textMuted,
-  },
-  tabBar: {
-    flexGrow: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  tabBarContent: {
-    flexDirection: 'row',
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    gap: 7,
   },
   chips: {
     flexDirection: 'row',
