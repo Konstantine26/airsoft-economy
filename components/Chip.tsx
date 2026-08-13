@@ -12,7 +12,16 @@ export function Chip({ label, selected, onPress, style }: Props) {
   return (
     <Pressable
       onPress={onPress}
-      style={[styles.chip, selected ? styles.selected : styles.unselected, style]}
+      android_ripple={{ color: colors.white14 }}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: !!selected }}
+      style={({ pressed }) => [
+        styles.chip,
+        selected ? styles.selected : styles.unselected,
+        pressed && styles.pressed,
+        style,
+      ]}
     >
       <Text style={[styles.label, selected ? styles.labelSelected : styles.labelUnselected]}>{label}</Text>
     </Pressable>
@@ -34,6 +43,9 @@ const styles = StyleSheet.create({
   unselected: {
     backgroundColor: colors.white10,
     borderColor: colors.cardBorder,
+  },
+  pressed: {
+    opacity: 0.7,
   },
   label: {
     fontFamily: font.bodySemiBold,

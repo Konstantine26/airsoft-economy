@@ -10,15 +10,26 @@ type Props = {
   disabled?: boolean;
   loading?: boolean;
   style?: StyleProp<ViewStyle>;
+  accessibilityLabel?: string;
 };
 
-export function Button({ title, onPress, variant = 'primary', disabled, loading, style }: Props) {
+export function Button({ title, onPress, variant = 'primary', disabled, loading, style, accessibilityLabel }: Props) {
   const isDisabled = disabled || loading;
   return (
     <Pressable
       onPress={onPress}
       disabled={isDisabled}
-      style={[styles.base, variantStyles[variant], isDisabled && styles.disabled, style]}
+      android_ripple={{ color: colors.white14 }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? title}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      style={({ pressed }) => [
+        styles.base,
+        variantStyles[variant],
+        isDisabled && styles.disabled,
+        pressed && !isDisabled && styles.pressed,
+        style,
+      ]}
     >
       {loading ? (
         <ActivityIndicator color={variant === 'primary' || variant === 'success' ? colors.onAccent : colors.text} />
@@ -42,6 +53,9 @@ const styles = StyleSheet.create({
   },
   disabled: {
     opacity: 0.5,
+  },
+  pressed: {
+    opacity: 0.75,
   },
 });
 

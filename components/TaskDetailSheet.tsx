@@ -8,6 +8,7 @@ import { Chip } from './Chip';
 import { Sheet } from './Sheet';
 import { TaskAttachmentsList } from './TaskAttachmentsList';
 import { colors, font, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 type Props = {
   task: Task | null;
@@ -106,7 +107,7 @@ export function TaskDetailSheet({
       <ScrollView style={styles.scroll} showsVerticalScrollIndicator={false}>
         <View style={styles.headerRow}>
           <Text style={styles.title}>{task.title}</Text>
-          <Text style={styles.reward}>{task.reward != null ? `${task.reward.toFixed(2)} ₽` : 'Без награды'}</Text>
+          <Text style={styles.reward}>{task.reward != null ? formatMoney(task.reward) : 'Без награды'}</Text>
         </View>
 
         <View style={styles.badgeRow}>

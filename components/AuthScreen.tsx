@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
+import { Button } from './Button';
 import { TextField } from './TextField';
-import { colors, font, radii, spacing } from '../lib/theme';
+import { colors, font, spacing } from '../lib/theme';
 
 export function AuthScreen() {
   const { signIn, signUp } = useAuth();
@@ -77,15 +78,12 @@ export function AuthScreen() {
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {info ? <Text style={styles.info}>{info}</Text> : null}
 
-      <Pressable style={styles.submitButton} onPress={handleSubmit} disabled={submitting}>
-        {submitting ? (
-          <ActivityIndicator color={colors.onAccent} />
-        ) : (
-          <Text style={styles.submitButtonText}>
-            {mode === 'signIn' ? 'Войти' : 'Зарегистрироваться'}
-          </Text>
-        )}
-      </Pressable>
+      <Button
+        title={mode === 'signIn' ? 'Войти' : 'Зарегистрироваться'}
+        onPress={handleSubmit}
+        loading={submitting}
+        style={styles.submitButton}
+      />
 
       <Pressable
         onPress={() => {
@@ -93,6 +91,8 @@ export function AuthScreen() {
           setError(null);
           setInfo(null);
         }}
+        accessibilityRole="button"
+        accessibilityLabel={mode === 'signIn' ? 'Перейти к регистрации' : 'Перейти ко входу'}
       >
         <Text style={styles.switchText}>
           {mode === 'signIn' ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
@@ -155,17 +155,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   submitButton: {
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: 13,
-    alignItems: 'center',
     marginTop: spacing.sm,
     marginBottom: spacing.md,
-  },
-  submitButtonText: {
-    fontFamily: font.heading,
-    color: colors.onAccent,
-    fontSize: 15,
   },
   switchText: {
     fontFamily: font.body,

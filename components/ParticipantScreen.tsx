@@ -10,6 +10,7 @@ import { Card } from './Card';
 import { Button } from './Button';
 import { GameCardScreen } from './GameCardScreen';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
@@ -166,7 +167,7 @@ export function ParticipantScreen({ ownMembership, activeProjectId, activeGameId
             <Text style={styles.teamCardTitle}>{ownMembership.team.name}</Text>
           </View>
           <Text style={styles.teamCardBalance}>
-            {teamBalance !== null ? `Баланс: ${teamBalance.toFixed(2)} ₽` : 'Нет проекта с включённой экономикой'}
+            {teamBalance !== null ? `Баланс: ${formatMoney(teamBalance)}` : 'Нет проекта с включённой экономикой'}
           </Text>
           <View style={styles.rosterList}>
             {roster.map((entry) => (

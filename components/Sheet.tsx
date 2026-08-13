@@ -1,4 +1,4 @@
-import { Modal, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { colors, radii } from '../lib/theme';
 
 type Props = {
@@ -11,16 +11,21 @@ type Props = {
 export function Sheet({ visible, onRequestClose, children, style }: Props) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
-      <Pressable style={styles.backdrop} onPress={onRequestClose}>
-        <Pressable style={[styles.sheet, style]} onPress={(e) => e.stopPropagation()}>
-          {children}
+      <KeyboardAvoidingView style={styles.avoider} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <Pressable style={styles.backdrop} onPress={onRequestClose}>
+          <Pressable style={[styles.sheet, style]} onPress={(e) => e.stopPropagation()}>
+            {children}
+          </Pressable>
         </Pressable>
-      </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  avoider: {
+    flex: 1,
+  },
   backdrop: {
     flex: 1,
     backgroundColor: colors.overlay,

@@ -127,7 +127,12 @@ export function Dashboard() {
     <View style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerIdentity}>
-          <Pressable onPress={changeAvatar} disabled={uploadingAvatar}>
+          <Pressable
+            onPress={changeAvatar}
+            disabled={uploadingAvatar}
+            accessibilityRole="button"
+            accessibilityLabel="Сменить фото профиля"
+          >
             {uploadingAvatar ? (
               <View style={[styles.avatarLoading, { width: 32, height: 32, borderRadius: 16 }]}>
                 <ActivityIndicator size="small" color={colors.accent} />
@@ -138,7 +143,7 @@ export function Dashboard() {
           </Pressable>
           <Text style={styles.headerName}>{profile.full_name || 'Без имени'}</Text>
         </View>
-        <Pressable onPress={signOut}>
+        <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
           <Text style={styles.signOut}>Выйти</Text>
         </Pressable>
       </View>

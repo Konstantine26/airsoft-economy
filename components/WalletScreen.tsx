@@ -9,6 +9,7 @@ import { SendMoneyModal } from './SendMoneyModal';
 import { Button } from './Button';
 import { Card } from './Card';
 import { colors, font, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 import type { PersonalTransaction, PersonalTransactionKind } from '../lib/database.types';
 
 type JournalRow = PersonalTransaction & {
@@ -96,7 +97,7 @@ export function WalletScreen({ projectId }: Props) {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Кошелёк</Text>
-      <Text style={styles.balance}>{balance.toFixed(2)} ₽</Text>
+      <Text style={styles.balance}>{formatMoney(balance)}</Text>
       <Text style={styles.participantNumber}>Мой номер участника: {profile.participant_number}</Text>
 
       <Button
@@ -132,7 +133,7 @@ export function WalletScreen({ projectId }: Props) {
                 </View>
                 <Text style={outgoing ? styles.amountOut : styles.amountIn}>
                   {outgoing ? '-' : '+'}
-                  {row.amount.toFixed(2)} ₽
+                  {formatMoney(row.amount)}
                 </Text>
               </Card>
             );

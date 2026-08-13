@@ -7,6 +7,7 @@ import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { colors, font, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 const ROLES: Role[] = ['member', 'admin'];
 const ROLE_LABEL: Record<Role, string> = {
@@ -95,7 +96,7 @@ export function AdminUsersTab({ activeProjectId }: Props) {
               </Text>
             </View>
             {activeProjectId ? (
-              <Text style={styles.label}>Баланс в проекте: {(balances.get(p.id) ?? 0).toFixed(2)} ₽</Text>
+              <Text style={styles.label}>Баланс в проекте: {formatMoney(balances.get(p.id) ?? 0)}</Text>
             ) : null}
             <View style={styles.chips}>
               {ROLES.map((role) => (

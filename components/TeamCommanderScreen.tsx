@@ -9,6 +9,7 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 import { AmountForm } from './AmountForm';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 type RosterRow = { id: string; profile_id: string; full_name: string; avatar_url: string | null };
 type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
@@ -319,7 +320,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       ) : null}
 
       {projectId ? (
-        <Text style={styles.subtitle}>Баланс команды: {teamBalance.toFixed(2)} ₽</Text>
+        <Text style={styles.subtitle}>Баланс команды: {formatMoney(teamBalance)}</Text>
       ) : (
         <Text style={styles.subtitle}>Нет проекта с включённой экономикой</Text>
       )}

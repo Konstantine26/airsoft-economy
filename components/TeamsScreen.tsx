@@ -6,6 +6,7 @@ import { TransferModal } from './TransferModal';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 type TeamWithBalance = Team & { balance: number };
 
@@ -102,7 +103,7 @@ export function TeamsScreen({ projectId }: Props) {
                 <Avatar uri={item.avatar_url} name={item.name} size={26} />
                 <Text style={styles.teamName}>{item.name}</Text>
               </View>
-              <Text style={styles.balance}>{item.balance.toFixed(2)} ₽</Text>
+              <Text style={styles.balance}>{formatMoney(item.balance)}</Text>
             </Pressable>
           );
         }}

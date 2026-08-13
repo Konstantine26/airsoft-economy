@@ -5,7 +5,7 @@ export const colors = {
   cardSoft: '#161616',
   text: '#f2f2f2',
   textMuted: '#8f8f8f',
-  textDim: '#6b6b6b',
+  textDim: '#878787',
   accent: '#4f7fe8',
   accentBorder: '#5c6cb8',
   accentSoft: 'rgba(79, 127, 232, 0.14)',

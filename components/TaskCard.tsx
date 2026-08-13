@@ -3,6 +3,7 @@ import type { Task } from '../lib/database.types';
 import { TASK_STATUS_LABEL, TASK_VISIBILITY_LABEL } from '../lib/tasks';
 import { Card } from './Card';
 import { colors, font, radii } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 type Props = {
   task: Task;
@@ -29,7 +30,7 @@ export function TaskCard({ task, sideName, teamName, assigneeName, onPress }: Pr
           <Text style={styles.title} numberOfLines={1}>
             {task.title}
           </Text>
-          <Text style={styles.reward}>{task.reward != null ? `${task.reward.toFixed(2)} ₽` : 'Без награды'}</Text>
+          <Text style={styles.reward}>{task.reward != null ? formatMoney(task.reward) : 'Без награды'}</Text>
         </View>
         <Text style={styles.target}>{targetLine}</Text>
         <View style={styles.row}>

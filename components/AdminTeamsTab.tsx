@@ -9,6 +9,7 @@ import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { colors, font, spacing } from '../lib/theme';
+import { formatMoney } from '../lib/format';
 
 type Props = {
   activeProjectId: string | null;
@@ -154,7 +155,7 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
 
             {activeProjectId ? (
               <>
-                <Text style={styles.label}>Баланс в проекте: {(balances.get(team.id) ?? 0).toFixed(2)} ₽</Text>
+                <Text style={styles.label}>Баланс в проекте: {formatMoney(balances.get(team.id) ?? 0)}</Text>
                 <AmountForm
                   placeholder="Пополнить баланс команды"
                   buttonLabel="Пополнить"
