@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import QRCode from 'react-native-qrcode-svg';
 import { supabase } from '../lib/supabase';
 import { encodeParticipantCode } from '../lib/participantCode';
@@ -37,17 +37,16 @@ export function WalletScreen({ projectId }: Props) {
   const [balance, setBalance] = useState(0);
   const [journal, setJournal] = useState<JournalRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showQr, setShowQr] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
 
-  const load = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!session || !projectId) {
       setBalance(0);
       setJournal([]);
-      setLoading(false);
       return;
     }
-    setLoading(true);
     const [balanceRes, journalRes] = await Promise.all([
       supabase
         .from('project_profile_balances')
@@ -66,17 +65,23 @@ export function WalletScreen({ projectId }: Props) {
     ]);
     setBalance(balanceRes.data?.balance ?? 0);
     setJournal((journalRes.data as unknown as JournalRow[]) ?? []);
-    setLoading(false);
   }, [session, projectId]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    setLoading(true);
+    fetchData().finally(() => setLoading(false));
+  }, [fetchData]);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
+  }, [fetchData]);
 
   const onTransferDone = useCallback(async () => {
     setSendOpen(false);
-    await Promise.all([load(), capabilities.refresh()]);
-  }, [load, capabilities]);
+    await Promise.all([fetchData(), capabilities.refresh()]);
+  }, [fetchData, capabilities]);
 
   if (!profile || loading) {
     return (
@@ -95,7 +100,11 @@ export function WalletScreen({ projectId }: Props) {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
+    >
       <Text style={styles.title}>Кошелёк</Text>
       <Text style={styles.balance}>{formatMoney(balance)}</Text>
       <Text style={styles.participantNumber}>Мой номер участника: {profile.participant_number}</Text>

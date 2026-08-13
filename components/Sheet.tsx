@@ -1,4 +1,5 @@
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, radii } from '../lib/theme';
 
 type Props = {
@@ -9,11 +10,15 @@ type Props = {
 };
 
 export function Sheet({ visible, onRequestClose, children, style }: Props) {
+  const insets = useSafeAreaInsets();
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
       <KeyboardAvoidingView style={styles.avoider} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <Pressable style={styles.backdrop} onPress={onRequestClose}>
-          <Pressable style={[styles.sheet, style]} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={[styles.sheet, { paddingBottom: 20 + insets.bottom }, style]}
+            onPress={(e) => e.stopPropagation()}
+          >
             {children}
           </Pressable>
         </Pressable>
@@ -38,6 +43,5 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: radii.sheet,
     borderTopRightRadius: radii.sheet,
     padding: 20,
-    paddingBottom: 30,
   },
 });

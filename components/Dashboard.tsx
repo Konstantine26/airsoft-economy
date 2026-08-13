@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
@@ -30,6 +30,7 @@ export function Dashboard() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarError, setAvatarError] = useState<string | null>(null);
 
   const activateGame = useCallback((game: { id: string; project_id: string }) => {
     setActiveGameId(game.id);
@@ -39,9 +40,10 @@ export function Dashboard() {
 
   const changeAvatar = useCallback(async () => {
     if (!session) return;
+    setAvatarError(null);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Нет доступа к галерее');
+      setAvatarError('Нет доступа к галерее');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -73,7 +75,7 @@ export function Dashboard() {
 
       await refreshProfile();
     } catch (e) {
-      Alert.alert('Не удалось загрузить фото', e instanceof Error ? e.message : undefined);
+      setAvatarError(e instanceof Error ? e.message : 'Не удалось загрузить фото');
     } finally {
       setUploadingAvatar(false);
     }
@@ -147,6 +149,12 @@ export function Dashboard() {
           <Text style={styles.signOut}>Выйти</Text>
         </Pressable>
       </View>
+
+      {avatarError ? (
+        <View style={styles.avatarErrorBanner}>
+          <Text style={styles.avatarErrorText}>{avatarError}</Text>
+        </View>
+      ) : null}
 
       {economyProjects.length > 0 ? (
         <View style={styles.projectBar}>
@@ -235,6 +243,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   signOut: {
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: colors.danger,
+  },
+  avatarErrorBanner: {
+    paddingHorizontal: 18,
+    paddingVertical: 8,
+    backgroundColor: colors.overlayStrong,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.cardBorder,
+  },
+  avatarErrorText: {
     fontFamily: font.body,
     fontSize: 12.5,
     color: colors.danger,

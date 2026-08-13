@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
@@ -36,9 +36,10 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const changeTeamAvatar = useCallback(async () => {
+    setError(null);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Нет доступа к галерее');
+      setError('Нет доступа к галерее');
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -70,7 +71,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
 
       setActiveTeam((prev) => ({ ...prev, avatar_url: avatarUrl }));
     } catch (e) {
-      Alert.alert('Не удалось загрузить фото', e instanceof Error ? e.message : undefined);
+      setError(e instanceof Error ? e.message : 'Не удалось загрузить фото');
     } finally {
       setUploadingAvatar(false);
     }

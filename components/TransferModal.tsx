@@ -68,13 +68,13 @@ export function TransferModal({ visible, projectId, fromTeam, toTeam, onClose, o
 
       <TextField
         style={styles.input}
+        label="Сумма, ₽"
         value={amount}
         onChangeText={setAmount}
         keyboardType="decimal-pad"
-        placeholder="Сумма"
+        placeholder="0.00"
+        error={error}
       />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <View style={styles.actions}>
         <Button title="Назад" variant="secondary" onPress={handleClose} style={styles.actionButton} />
@@ -93,11 +93,6 @@ const styles = StyleSheet.create({
   },
   input: {
     marginBottom: spacing.md + 2,
-  },
-  error: {
-    fontFamily: font.body,
-    color: colors.danger,
-    marginBottom: spacing.md,
   },
   actions: {
     flexDirection: 'row',

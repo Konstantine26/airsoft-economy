@@ -155,12 +155,13 @@ export function SendMoneyModal({ visible, projectId, ownTeam, onClose, onSuccess
           <Text style={styles.title}>В команду «{ownTeam?.name}»</Text>
           <TextField
             style={styles.input}
+            label="Сумма, ₽"
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
-            placeholder="Сумма"
+            placeholder="0.00"
+            error={error}
           />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.actions}>
             <Button title="Назад" variant="secondary" onPress={reset} style={styles.actionButton} />
             <Button title="Отправить" onPress={submitTeamTransfer} loading={submitting} style={styles.actionButton} />
@@ -173,12 +174,13 @@ export function SendMoneyModal({ visible, projectId, ownTeam, onClose, onSuccess
           <Text style={styles.title}>Номер участника</Text>
           <TextField
             style={styles.input}
+            label="Номер участника"
             value={numberInput}
             onChangeText={setNumberInput}
             keyboardType="number-pad"
             placeholder="Например, 42"
+            error={error}
           />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.actions}>
             <Button title="Назад" variant="secondary" onPress={reset} style={styles.actionButton} />
             <Button title="Далее" onPress={handleManualSubmit} style={styles.actionButton} />
@@ -214,12 +216,13 @@ export function SendMoneyModal({ visible, projectId, ownTeam, onClose, onSuccess
           <Text style={styles.label}>Номер участника: {recipient.participant_number}</Text>
           <TextField
             style={styles.input}
+            label="Сумма, ₽"
             value={amount}
             onChangeText={setAmount}
             keyboardType="decimal-pad"
-            placeholder="Сумма"
+            placeholder="0.00"
+            error={error}
           />
-          {error ? <Text style={styles.error}>{error}</Text> : null}
           <View style={styles.actions}>
             <Button title="Назад" variant="secondary" onPress={reset} style={styles.actionButton} />
             <Button

@@ -1,6 +1,7 @@
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
-import { ActivityIndicator, SafeAreaView, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
 import { Dashboard } from './components/Dashboard';
@@ -29,12 +30,14 @@ export default function App() {
   const [fontsLoaded] = useFonts(fontsToLoad);
 
   return (
-    <AuthProvider>
-      <SafeAreaView style={styles.container}>
-        {fontsLoaded ? <Root /> : <View style={styles.center}><ActivityIndicator color={colors.accent} /></View>}
-        <StatusBar style="light" />
-      </SafeAreaView>
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <SafeAreaView style={styles.container}>
+          {fontsLoaded ? <Root /> : <View style={styles.center}><ActivityIndicator color={colors.accent} /></View>}
+          <StatusBar style="light" />
+        </SafeAreaView>
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
