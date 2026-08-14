@@ -1,14 +1,16 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
+import { TextField } from './TextField';
 import { AmountForm } from './AmountForm';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { confirmAsync } from '../lib/confirm';
 import { formatMoney } from '../lib/format';
 
 type RosterRow = { id: string; profile_id: string; full_name: string; avatar_url: string | null };
@@ -23,6 +25,8 @@ const TEAM_AVATAR_BUCKET = 'team-avatars';
 
 export function TeamCommanderScreen({ teams, projectId }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
+  const [activeTab, setActiveTab] = useState<'team' | 'games' | 'budget'>('team');
+  const [addQuery, setAddQuery] = useState('');
   const [teamBalance, setTeamBalance] = useState(0);
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
@@ -146,11 +150,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
           .eq('game_id', game.id)
           .eq('team_id', activeTeam.id)
           .maybeSingle(),
-        supabase
-          .from('game_participants')
-          .select('profile_id, status')
-          .eq('game_id', game.id)
-          .eq('team_id', activeTeam.id),
+        supabase.from('game_participants').select('profile_id, status').eq('game_id', game.id),
       ]);
       setSides(sidesRes.data ?? []);
       setTeamSideId(teamSideRes.data?.side_id ?? null);
@@ -168,6 +168,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       setError(error.message);
       return;
     }
+    setAddQuery('');
     loadRoster(activeTeam);
   };
 
@@ -200,6 +201,26 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
   const pickSide = async (sideId: string) => {
     if (!activeGame) return;
     setError(null);
+
+    // Team members already submitted for this game were approved (or are
+    // pending) for the OLD side -- switching sides means that approval no
+    // longer applies, so pull them all and resubmit as fresh pending
+    // applications under the new side.
+    const registeredTeamProfileIds = roster.map((r) => r.profile_id).filter((id) => registeredProfiles.has(id));
+
+    if (registeredTeamProfileIds.length > 0) {
+      const { error: removeError } = await supabase
+        .from('game_participants')
+        .delete()
+        .eq('game_id', activeGame.id)
+        .eq('team_id', activeTeam.id)
+        .in('profile_id', registeredTeamProfileIds);
+      if (removeError) {
+        setError(removeError.message);
+        return;
+      }
+    }
+
     const { error } = await supabase
       .from('game_team_sides')
       .upsert(
@@ -211,6 +232,37 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       return;
     }
     setTeamSideId(sideId);
+
+    if (registeredTeamProfileIds.length > 0) {
+      const rows = registeredTeamProfileIds.map((profile_id) => ({
+        game_id: activeGame.id,
+        team_id: activeTeam.id,
+        profile_id,
+      }));
+      const { error: insertError } = await supabase.from('game_participants').insert(rows);
+      if (insertError) {
+        setError(insertError.message);
+        return;
+      }
+      setRegisteredProfiles((prev) => {
+        const next = new Map(prev);
+        for (const id of registeredTeamProfileIds) next.set(id, 'pending');
+        return next;
+      });
+    }
+  };
+
+  const handleSidePress = async (sideId: string) => {
+    if (teamSideId && teamSideId !== sideId) {
+      const sideName = sides.find((s) => s.id === sideId)?.name ?? '';
+      const ok = await confirmAsync(
+        'Сменить сторону?',
+        `Команда уже записана на другую сторону. Все поданные заявки команды на эту игру будут сняты и поданы заново для стороны «${sideName}», ожидая нового подтверждения организатора. Сменить?`,
+        'Сменить'
+      );
+      if (!ok) return;
+    }
+    pickSide(sideId);
   };
 
   const toggleParticipant = async (profileId: string) => {
@@ -243,20 +295,26 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
     }
   };
 
-  const handleRosterPress = (row: RosterRow) => {
+  const handleRosterPress = async (row: RosterRow) => {
     if (registeredProfiles.get(row.profile_id) === 'confirmed') {
-      Alert.alert(
+      const ok = await confirmAsync(
         'Убрать из состава?',
         `${row.full_name} уже подтверждён(а) организатором на эту игру. Убрать из состава?`,
-        [
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Убрать', style: 'destructive', onPress: () => toggleParticipant(row.profile_id) },
-        ]
+        'Убрать'
       );
-      return;
+      if (!ok) return;
     }
     toggleParticipant(row.profile_id);
   };
+
+  const addQueryTrimmed = addQuery.trim();
+  const addResults = !addQueryTrimmed
+    ? []
+    : availableProfiles.filter((p) =>
+        /^\d+$/.test(addQueryTrimmed)
+          ? String(p.participant_number).includes(addQueryTrimmed)
+          : p.full_name.toLowerCase().includes(addQueryTrimmed.toLowerCase())
+      );
 
   if (loading) {
     return (
@@ -287,7 +345,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
         </View>
         <View style={styles.chips}>
           {sides.map((side) => (
-            <Chip key={side.id} label={side.name} selected={teamSideId === side.id} onPress={() => pickSide(side.id)} />
+            <Chip key={side.id} label={side.name} selected={teamSideId === side.id} onPress={() => handleSidePress(side.id)} />
           ))}
         </View>
 
@@ -326,85 +384,124 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
     >
       <Text style={styles.title}>Моя команда</Text>
 
-      <View style={styles.teamIdentityRow}>
-        <Pressable onPress={changeTeamAvatar} disabled={uploadingAvatar}>
-          {uploadingAvatar ? (
-            <View style={[styles.avatarLoading, { width: 48, height: 48, borderRadius: 24 }]}>
-              <ActivityIndicator size="small" color={colors.accent} />
-            </View>
-          ) : (
-            <Avatar uri={activeTeam.avatar_url} name={activeTeam.name} size={48} />
-          )}
-        </Pressable>
-        <View>
-          <Text style={styles.teamName}>{activeTeam.name}</Text>
-          <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
-        </View>
+      <View style={styles.subNav}>
+        <Chip label="Моя команда" selected={activeTab === 'team'} onPress={() => setActiveTab('team')} />
+        <Chip label="Игры" selected={activeTab === 'games'} onPress={() => setActiveTab('games')} />
+        <Chip label="Бюджет" selected={activeTab === 'budget'} onPress={() => setActiveTab('budget')} />
       </View>
 
-      {teams.length > 1 ? (
-        <View style={styles.chips}>
-          {teams.map((team) => (
-            <Chip key={team.id} label={team.name} selected={activeTeam.id === team.id} onPress={() => setActiveTeam(team)} />
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {activeTab === 'team' ? (
+        <>
+          <View style={styles.teamIdentityRow}>
+            <Pressable onPress={changeTeamAvatar} disabled={uploadingAvatar}>
+              {uploadingAvatar ? (
+                <View style={[styles.avatarLoading, { width: 48, height: 48, borderRadius: 24 }]}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                </View>
+              ) : (
+                <Avatar uri={activeTeam.avatar_url} name={activeTeam.name} size={48} />
+              )}
+            </Pressable>
+            <View>
+              <Text style={styles.teamName}>{activeTeam.name}</Text>
+              <Text style={styles.avatarHint}>Нажмите на фото, чтобы изменить</Text>
+            </View>
+          </View>
+
+          {teams.length > 1 ? (
+            <View style={styles.chips}>
+              {teams.map((team) => (
+                <Chip key={team.id} label={team.name} selected={activeTeam.id === team.id} onPress={() => setActiveTeam(team)} />
+              ))}
+            </View>
+          ) : null}
+
+          <Text style={styles.sectionTitle}>Ростер</Text>
+          <View style={styles.rosterList}>
+            {roster.map((row) => (
+              <Card key={row.id}>
+                <View style={styles.rosterRow}>
+                  <View style={styles.rosterIdentity}>
+                    <Avatar uri={row.avatar_url} name={row.full_name} size={22} />
+                    <Text style={styles.rosterName}>{row.full_name}</Text>
+                    {row.profile_id === activeTeam.commander_id ? (
+                      <MaterialCommunityIcons name="crown" size={14} color={colors.crown} />
+                    ) : null}
+                  </View>
+                  <Pressable onPress={() => removeMember(row)}>
+                    <Text style={styles.removeText}>Убрать</Text>
+                  </Pressable>
+                </View>
+              </Card>
+            ))}
+          </View>
+
+          <Text style={styles.sectionTitle}>Добавить в команду</Text>
+          <TextField
+            style={styles.input}
+            placeholder="Номер участника или позывной"
+            value={addQuery}
+            onChangeText={setAddQuery}
+          />
+          {!addQueryTrimmed ? (
+            <Text style={styles.label}>Введите номер или позывной, чтобы найти игрока</Text>
+          ) : addResults.length === 0 ? (
+            <Text style={styles.label}>Никого не нашлось</Text>
+          ) : (
+            <View style={styles.rosterList}>
+              {addResults.map((p) => (
+                <Pressable key={p.id} style={styles.addRow} onPress={() => addMember(p)}>
+                  <View style={styles.rosterIdentity}>
+                    <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
+                    <Text style={styles.rosterName}>{p.full_name || '(без имени)'} · №{p.participant_number}</Text>
+                  </View>
+                  <Text style={styles.addText}>+ Добавить</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+        </>
+      ) : null}
+
+      {activeTab === 'games' ? (
+        <View style={styles.rosterList}>
+          {games.map((game) => (
+            <Pressable key={game.id} onPress={() => openGame(game)}>
+              <Card>
+                <Text style={styles.cardTitle}>{game.name}</Text>
+                <Text style={styles.label}>{game.project_name} · {game.polygon?.name ?? '—'}</Text>
+              </Card>
+            </Pressable>
           ))}
         </View>
       ) : null}
 
-      {projectId ? (
-        <Text style={styles.subtitle}>Баланс команды: {formatMoney(teamBalance)}</Text>
-      ) : (
-        <Text style={styles.subtitle}>Нет проекта с включённой экономикой</Text>
-      )}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Text style={styles.sectionTitle}>Ростер</Text>
-      <View style={styles.rosterList}>
-        {roster.map((row) => (
-          <Card key={row.id}>
-            <View style={styles.rosterRow}>
-              <View style={styles.rosterIdentity}>
-                <Avatar uri={row.avatar_url} name={row.full_name} size={22} />
-                <Text style={styles.rosterName}>{row.full_name}</Text>
-                {row.profile_id === activeTeam.commander_id ? (
-                  <MaterialCommunityIcons name="crown" size={14} color={colors.crown} />
+      {activeTab === 'budget' ? (
+        <>
+          {projectId ? (
+            <Text style={styles.subtitle}>Баланс команды: {formatMoney(teamBalance)}</Text>
+          ) : (
+            <Text style={styles.subtitle}>Нет проекта с включённой экономикой</Text>
+          )}
+          <View style={styles.rosterList}>
+            {roster.map((row) => (
+              <Card key={row.id}>
+                <View style={styles.rosterRow}>
+                  <View style={styles.rosterIdentity}>
+                    <Avatar uri={row.avatar_url} name={row.full_name} size={22} />
+                    <Text style={styles.rosterName}>{row.full_name}</Text>
+                  </View>
+                </View>
+                {projectId ? (
+                  <AmountForm buttonLabel="Выдать" onSubmit={(amount) => distribute(row.profile_id, amount)} />
                 ) : null}
-              </View>
-              <Pressable onPress={() => removeMember(row)}>
-                <Text style={styles.removeText}>Убрать</Text>
-              </Pressable>
-            </View>
-            {projectId ? (
-              <AmountForm buttonLabel="Выдать" onSubmit={(amount) => distribute(row.profile_id, amount)} />
-            ) : null}
-          </Card>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Добавить в команду</Text>
-      <View style={styles.rosterList}>
-        {availableProfiles.map((p) => (
-          <Pressable key={p.id} style={styles.addRow} onPress={() => addMember(p)}>
-            <View style={styles.rosterIdentity}>
-              <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
-              <Text style={styles.rosterName}>{p.full_name || '(без имени)'}</Text>
-            </View>
-            <Text style={styles.addText}>+ Добавить</Text>
-          </Pressable>
-        ))}
-      </View>
-
-      <Text style={styles.sectionTitle}>Игры</Text>
-      <View style={styles.rosterList}>
-        {games.map((game) => (
-          <Pressable key={game.id} onPress={() => openGame(game)}>
-            <Card>
-              <Text style={styles.cardTitle}>{game.name}</Text>
-              <Text style={styles.label}>{game.project_name} · {game.polygon?.name ?? '—'}</Text>
-            </Card>
-          </Pressable>
-        ))}
-      </View>
+              </Card>
+            ))}
+          </View>
+        </>
+      ) : null}
     </ScrollView>
   );
 }
@@ -439,6 +536,13 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 4,
+    marginBottom: spacing.md,
+  },
+  subNav: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
   teamIdentityRow: {
@@ -497,6 +601,9 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: spacing.sm,
+  },
+  input: {
+    marginBottom: spacing.sm + 2,
   },
   rosterList: {
     gap: spacing.sm,

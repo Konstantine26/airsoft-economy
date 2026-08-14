@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { confirmAsync } from '../lib/confirm';
 import { useAuth } from '../contexts/AuthContext';
 import type {
   Game,
@@ -188,17 +189,14 @@ export function GameCardScreen({ gameId, ownMembership, onClose }: Props) {
     setSideRoster([]);
   };
 
-  const handleCancelPress = () => {
+  const handleCancelPress = async () => {
     if (myStatus === 'confirmed') {
-      Alert.alert(
+      const ok = await confirmAsync(
         'Отменить заявку?',
         'Вы уже подтверждены организатором на эту игру. Отменить заявку?',
-        [
-          { text: 'Отмена', style: 'cancel' },
-          { text: 'Отменить', style: 'destructive', onPress: cancelApplication },
-        ]
+        'Отменить'
       );
-      return;
+      if (!ok) return;
     }
     cancelApplication();
   };
