@@ -9,11 +9,12 @@ import { Avatar } from './Avatar';
 import { Chip } from './Chip';
 import { TabBar, type TabBarItem } from './TabBar';
 import { AdminScreen } from './AdminScreen';
-import { BriefingScreen } from './BriefingScreen';
 import { OrganizerScreen } from './OrganizerScreen';
 import { TeamCommanderScreen } from './TeamCommanderScreen';
 import { SideCommanderScreen } from './SideCommanderScreen';
-import { ParticipantScreen } from './ParticipantScreen';
+import { PlayerHomeScreen } from './PlayerHomeScreen';
+import { PlayerGamesScreen } from './PlayerGamesScreen';
+import { PlayerTeamScreen } from './PlayerTeamScreen';
 import { TeamsScreen } from './TeamsScreen';
 import { TraderScreen } from './TraderScreen';
 import { WalletScreen } from './WalletScreen';
@@ -31,7 +32,7 @@ const ROLE_META: Record<RoleKey, { label: string; icon: keyof typeof MaterialCom
   player: { label: 'Игрок', icon: 'home-outline' },
 };
 
-type PlayerTab = 'home' | 'briefing' | 'wallet';
+type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
 type OrganizerTab = 'overview' | 'games' | 'economy';
 
 const AVATAR_BUCKET = 'avatars';
@@ -41,17 +42,14 @@ export function Dashboard() {
   const capabilities = useCapabilities();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [activeGameId, setActiveGameId] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
   const [playerTab, setPlayerTab] = useState<PlayerTab>('home');
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
 
-  const activateGame = useCallback((game: { id: string; project_id: string }) => {
-    setActiveGameId(game.id);
+  const openGame = useCallback((game: { id: string; project_id: string }) => {
     setActiveProjectId(game.project_id);
-    setPlayerTab('briefing');
   }, []);
 
   const changeAvatar = useCallback(async () => {
@@ -109,13 +107,12 @@ export function Dashboard() {
   }, [loadProjects]);
 
   const availableRoles = useMemo(() => {
-    const roles: RoleKey[] = [];
-    if (profile?.role === 'admin') roles.push('admin');
-    if (capabilities.isOrganizer) roles.push('organizer');
-    if (capabilities.commandedSides.length > 0) roles.push('sideCommander');
-    if (capabilities.commandedTeams.length > 0) roles.push('teamCommander');
+    const roles: RoleKey[] = ['player'];
     if (capabilities.isTrader) roles.push('trader');
-    roles.push('player');
+    if (capabilities.commandedTeams.length > 0) roles.push('teamCommander');
+    if (capabilities.commandedSides.length > 0) roles.push('sideCommander');
+    if (capabilities.isOrganizer) roles.push('organizer');
+    if (profile?.role === 'admin') roles.push('admin');
     return roles;
   }, [profile, capabilities.isOrganizer, capabilities.commandedSides, capabilities.commandedTeams, capabilities.isTrader]);
 
@@ -204,20 +201,23 @@ export function Dashboard() {
           <>
             <View style={styles.subNav}>
               <Chip label="Главная" selected={playerTab === 'home'} onPress={() => setPlayerTab('home')} />
-              {activeGameId ? (
-                <Chip label="Брифинг" selected={playerTab === 'briefing'} onPress={() => setPlayerTab('briefing')} />
-              ) : null}
-              <Chip label="Кошелёк" selected={playerTab === 'wallet'} onPress={() => setPlayerTab('wallet')} />
+              <Chip label="Игры" selected={playerTab === 'games'} onPress={() => setPlayerTab('games')} />
+              <Chip label="Моя команда" selected={playerTab === 'team'} onPress={() => setPlayerTab('team')} />
+              <Chip label="Деньги" selected={playerTab === 'wallet'} onPress={() => setPlayerTab('wallet')} />
             </View>
             {playerTab === 'home' ? (
-              <ParticipantScreen
+              <PlayerHomeScreen
                 ownMembership={capabilities.ownMembership}
-                activeProjectId={activeProjectId}
-                activeGameId={activeGameId}
-                onActivateGame={activateGame}
+                onGoToGames={() => setPlayerTab('games')}
+                onOpenGame={openGame}
               />
             ) : null}
-            {playerTab === 'briefing' && activeGameId ? <BriefingScreen gameId={activeGameId} /> : null}
+            {playerTab === 'games' ? (
+              <PlayerGamesScreen ownMembership={capabilities.ownMembership} onOpenGame={openGame} />
+            ) : null}
+            {playerTab === 'team' ? (
+              <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
+            ) : null}
             {playerTab === 'wallet' ? <WalletScreen projectId={economyProjectId} /> : null}
           </>
         ) : null}
