@@ -19,6 +19,7 @@ type Props = {
   currentProfileId: string;
   isOrganizer: boolean;
   traderSideIds: string[];
+  commandedSideIds?: string[];
   onClose: () => void;
   onChanged: () => void;
 };
@@ -32,6 +33,7 @@ export function TaskDetailSheet({
   currentProfileId,
   isOrganizer,
   traderSideIds,
+  commandedSideIds = [],
   onClose,
   onChanged,
 }: Props) {
@@ -74,7 +76,7 @@ export function TaskDetailSheet({
     task.visibility === 'claimable' &&
     task.status === 'open' &&
     !task.assignee_profile_id &&
-    (isOrganizer || traderSideIds.includes(task.side_id));
+    (isOrganizer || traderSideIds.includes(task.side_id) || commandedSideIds.includes(task.side_id));
 
   const canConfirm = task.customer_profile_id === currentProfileId && isOpenish;
   const canCancel = (task.customer_profile_id === currentProfileId || isOrganizer) && isOpenish;

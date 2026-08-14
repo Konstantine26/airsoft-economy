@@ -5,6 +5,7 @@ import type { GameSide } from '../lib/database.types';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
+import { TasksSection } from './TasksSection';
 import { colors, font, spacing } from '../lib/theme';
 
 type ParticipantEntry = { full_name: string; avatar_url: string | null; status: 'pending' | 'confirmed' };
@@ -17,6 +18,7 @@ type TeamWithRoster = {
 
 export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
   const [activeSide, setActiveSide] = useState<GameSide>(sides[0]);
+  const [activeTab, setActiveTab] = useState<'side' | 'teams' | 'tasks'>('side');
   const [gameLabel, setGameLabel] = useState('');
   const [teams, setTeams] = useState<TeamWithRoster[]>([]);
   const [loading, setLoading] = useState(true);
@@ -99,38 +101,77 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
 
       <Text style={styles.subtitle}>{gameLabel}</Text>
 
+      <View style={styles.subNav}>
+        <Chip label="Моя сторона" selected={activeTab === 'side'} onPress={() => setActiveTab('side')} />
+        <Chip label="Команды" selected={activeTab === 'teams'} onPress={() => setActiveTab('teams')} />
+        <Chip label="Задания" selected={activeTab === 'tasks'} onPress={() => setActiveTab('tasks')} />
+      </View>
+
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 20 }} color={colors.accent} />
-      ) : teams.length === 0 ? (
-        <Text style={styles.label}>Пока ни одна команда не выбрала эту сторону</Text>
       ) : (
-        <View style={styles.teamsList}>
-          {teams.map((team) => (
-            <Card key={team.team_id}>
-              <View style={styles.teamHeader}>
-                <Avatar uri={team.team_avatar_url} name={team.team_name} size={24} />
-                <Text style={styles.cardTitle}>{team.team_name}</Text>
-              </View>
-              {team.participants.length === 0 ? (
-                <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
-              ) : (
-                team.participants.map((p, idx) => (
-                  <View key={idx} style={styles.participantRow}>
-                    <View style={styles.participantIdentity}>
-                      <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
-                      <Text style={styles.participant}>{p.full_name}</Text>
+        <>
+          {activeTab === 'side' ? (
+            teams.length === 0 ? (
+              <Text style={styles.label}>Пока ни одна команда не выбрала эту сторону</Text>
+            ) : (
+              <View style={styles.teamsList}>
+                {teams.map((team) => (
+                  <Card key={team.team_id}>
+                    <View style={styles.teamHeader}>
+                      <Avatar uri={team.team_avatar_url} name={team.team_name} size={24} />
+                      <Text style={styles.cardTitle}>{team.team_name}</Text>
                     </View>
-                    <Text style={p.status === 'confirmed' ? styles.statusConfirmed : styles.statusPending}>
-                      {p.status === 'confirmed' ? 'Подтверждён' : 'На подтверждении'}
-                    </Text>
-                  </View>
-                ))
-              )}
-            </Card>
-          ))}
-        </View>
+                    {team.participants.length === 0 ? (
+                      <Text style={styles.label}>Состав ещё не зарегистрирован</Text>
+                    ) : (
+                      team.participants.map((p, idx) => (
+                        <View key={idx} style={styles.participantRow}>
+                          <View style={styles.participantIdentity}>
+                            <Avatar uri={p.avatar_url} name={p.full_name} size={22} />
+                            <Text style={styles.participant}>{p.full_name}</Text>
+                          </View>
+                          <Text style={p.status === 'confirmed' ? styles.statusConfirmed : styles.statusPending}>
+                            {p.status === 'confirmed' ? 'Подтверждён' : 'На подтверждении'}
+                          </Text>
+                        </View>
+                      ))
+                    )}
+                  </Card>
+                ))}
+              </View>
+            )
+          ) : null}
+
+          {activeTab === 'teams' ? (
+            teams.length === 0 ? (
+              <Text style={styles.label}>Пока ни одна команда не выбрала эту сторону</Text>
+            ) : (
+              <View style={styles.teamsList}>
+                {teams.map((team) => {
+                  const confirmedCount = team.participants.filter((p) => p.status === 'confirmed').length;
+                  return (
+                    <Card key={team.team_id}>
+                      <View style={styles.teamHeader}>
+                        <Avatar uri={team.team_avatar_url} name={team.team_name} size={24} />
+                        <Text style={styles.cardTitle}>{team.team_name}</Text>
+                      </View>
+                      <Text style={styles.label}>
+                        Участников: {team.participants.length} · Подтверждено: {confirmedCount}
+                      </Text>
+                    </Card>
+                  );
+                })}
+              </View>
+            )
+          ) : null}
+
+          {activeTab === 'tasks' ? (
+            <TasksSection gameId={activeSide.game_id} commandedSideIds={[activeSide.id]} />
+          ) : null}
+        </>
       )}
     </ScrollView>
   );
@@ -201,6 +242,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   chips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  subNav: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,

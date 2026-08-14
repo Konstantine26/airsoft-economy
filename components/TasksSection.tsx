@@ -14,10 +14,17 @@ type Props = {
   gameId: string;
   isOrganizer?: boolean;
   traderSideIds?: string[];
+  commandedSideIds?: string[];
   splitClaimable?: boolean;
 };
 
-export function TasksSection({ gameId, isOrganizer = false, traderSideIds = [], splitClaimable = false }: Props) {
+export function TasksSection({
+  gameId,
+  isOrganizer = false,
+  traderSideIds = [],
+  commandedSideIds = [],
+  splitClaimable = false,
+}: Props) {
   const { profile } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -90,9 +97,11 @@ export function TasksSection({ gameId, isOrganizer = false, traderSideIds = [], 
     ? sides.map((s) => s.id)
     : traderSideIds.length > 0
       ? traderSideIds
-      : myEffectiveSideId
-        ? [myEffectiveSideId]
-        : [];
+      : commandedSideIds.length > 0
+        ? commandedSideIds
+        : myEffectiveSideId
+          ? [myEffectiveSideId]
+          : [];
 
   const allowedSides = sides.filter((s) => allowedSideIds.includes(s.id));
 
@@ -173,6 +182,7 @@ export function TasksSection({ gameId, isOrganizer = false, traderSideIds = [], 
         currentProfileId={profile?.id ?? ''}
         isOrganizer={isOrganizer}
         traderSideIds={traderSideIds}
+        commandedSideIds={commandedSideIds}
         onClose={() => setSelectedTask(null)}
         onChanged={load}
       />
