@@ -5,6 +5,7 @@ import type { TraderGame } from '../hooks/useCapabilities';
 import type { Game, Polygon, Project } from '../lib/database.types';
 import { Card } from './Card';
 import { TasksSection } from './TasksSection';
+import { TraderChargeSection } from './TraderChargeSection';
 import { colors, font, spacing } from '../lib/theme';
 
 type GameWithRelations = Game & { project: Project | null; polygon: Polygon | null };
@@ -56,6 +57,7 @@ export function TraderScreen({ traderGames }: Props) {
           <Text style={styles.back}>‹ Игры</Text>
         </Pressable>
         <Text style={styles.title}>{game?.name}</Text>
+        <TraderChargeSection gameId={selectedGameId} projectId={game?.project_id ?? null} sideIds={sideIds} />
         <TasksSection gameId={selectedGameId} traderSideIds={sideIds} />
       </ScrollView>
     );

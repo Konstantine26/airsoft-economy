@@ -161,7 +161,8 @@ export type PersonalTransactionKind =
   | 'team_to_participant'
   | 'participant_to_team'
   | 'participant_to_participant'
-  | 'task_reward';
+  | 'task_reward'
+  | 'trader_charge';
 
 export type PersonalTransaction = {
   id: string;
@@ -759,6 +760,26 @@ export type Database = {
           p_avatar_url: string | null;
         };
         Returns: Team;
+      };
+      trader_charge_participant: {
+        Args: {
+          p_project_id: string;
+          p_game_id: string;
+          p_from_profile_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
+      };
+      trader_charge_team: {
+        Args: {
+          p_project_id: string;
+          p_game_id: string;
+          p_from_team_id: string;
+          p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
       };
     };
   };
