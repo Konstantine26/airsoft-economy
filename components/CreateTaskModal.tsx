@@ -136,14 +136,6 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
 
     setSubmitting(true);
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      console.log('DEBUG create task', {
-        authUid: authData.user?.id,
-        authEmail: authData.user?.email,
-        customerProfileId,
-        gameId,
-        sideId,
-      });
       const { data: task, error: insertError } = await supabase
         .from('tasks')
         .insert({

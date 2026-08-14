@@ -141,7 +141,8 @@ export function TaskDetailSheet({
               <Button title="Подтвердить" onPress={() => confirm()} loading={submitting} style={styles.actionButton} />
             ) : (
               <Button
-                title="Подтвердить"
+                title={pickingRecipient ? 'Скрыть список' : 'Выбрать получателя'}
+                variant="secondary"
                 onPress={() => setPickingRecipient((v) => !v)}
                 loading={submitting}
                 style={styles.actionButton}
