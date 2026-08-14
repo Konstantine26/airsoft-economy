@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Profile, Role } from '../lib/database.types';
-import { AmountForm } from './AmountForm';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -59,21 +58,6 @@ export function AdminUsersTab({ activeProjectId }: Props) {
     setProfiles((prev) => prev.map((p) => (p.id === profileId ? { ...p, role } : p)));
   };
 
-  const deposit = async (profileId: string, amount: number) => {
-    if (!activeProjectId) return;
-    setError(null);
-    const { error } = await supabase.rpc('deposit_to_participant', {
-      p_project_id: activeProjectId,
-      p_to_profile_id: profileId,
-      p_amount: amount,
-    });
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    setBalances((prev) => new Map(prev).set(profileId, (prev.get(profileId) ?? 0) + amount));
-  };
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -113,9 +97,6 @@ export function AdminUsersTab({ activeProjectId }: Props) {
                 <Chip key={role} label={ROLE_LABEL[role]} selected={p.role === role} onPress={() => setRole(p.id, role)} />
               ))}
             </View>
-            {activeProjectId ? (
-              <AmountForm placeholder="Сумма пополнения" buttonLabel="Пополнить" onSubmit={(amount) => deposit(p.id, amount)} />
-            ) : null}
           </Card>
         ))}
       </View>

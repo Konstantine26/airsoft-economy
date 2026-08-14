@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Profile, Team } from '../lib/database.types';
-import { AmountForm } from './AmountForm';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -100,21 +99,6 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
     setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, commander_id: profileId } : t)));
   };
 
-  const deposit = async (teamId: string, amount: number) => {
-    if (!activeProjectId) return;
-    setError(null);
-    const { error } = await supabase.rpc('deposit_to_team', {
-      p_project_id: activeProjectId,
-      p_to_team_id: teamId,
-      p_amount: amount,
-    });
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    setBalances((prev) => new Map(prev).set(teamId, (prev.get(teamId) ?? 0) + amount));
-  };
-
   if (loading) {
     return (
       <View style={styles.center}>
@@ -164,14 +148,7 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
             )}
 
             {activeProjectId ? (
-              <>
-                <Text style={styles.label}>Баланс в проекте: {formatMoney(balances.get(team.id) ?? 0)}</Text>
-                <AmountForm
-                  placeholder="Пополнить баланс команды"
-                  buttonLabel="Пополнить"
-                  onSubmit={(amount) => deposit(team.id, amount)}
-                />
-              </>
+              <Text style={styles.label}>Баланс в проекте: {formatMoney(balances.get(team.id) ?? 0)}</Text>
             ) : null}
 
             <Text style={styles.label}>Командир</Text>

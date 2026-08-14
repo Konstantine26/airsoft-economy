@@ -104,6 +104,11 @@ export function OrganizerScreen({ view }: Props) {
 
   const fetchOrganizerProjects = useCallback(async () => {
     if (!profile) return;
+    if (isAdmin) {
+      const { data } = await supabase.from('projects').select('*').order('name', { ascending: true });
+      setOrganizerProjects(data ?? []);
+      return;
+    }
     const { data: rows } = await supabase.from('project_organizers').select('project_id').eq('profile_id', profile.id);
     const ids = (rows ?? []).map((r) => r.project_id);
     if (ids.length === 0) {
@@ -116,7 +121,7 @@ export function OrganizerScreen({ view }: Props) {
       .in('id', ids)
       .order('name', { ascending: true });
     setOrganizerProjects(projectRows ?? []);
-  }, [profile]);
+  }, [profile, isAdmin]);
 
   useEffect(() => {
     setLoading(true);

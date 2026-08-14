@@ -1,19 +1,20 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AdminTeamsTab } from './AdminTeamsTab';
 import { AdminProjectsTab } from './AdminProjectsTab';
 import { PolygonsScreen } from './PolygonsScreen';
+import { Card } from './Card';
 import { Chip } from './Chip';
-import { colors, spacing } from '../lib/theme';
+import { colors, font, spacing } from '../lib/theme';
 
-type SubTabKey = 'users' | 'teams' | 'polygons' | 'projects';
+type SubTabKey = 'home' | 'users' | 'teams' | 'projects';
+type ProjectsSubTab = 'projects' | 'polygons';
 
-const SUB_TABS: { key: SubTabKey; label: string }[] = [
-  { key: 'users', label: 'Пользователи' },
-  { key: 'teams', label: 'Команды' },
-  { key: 'polygons', label: 'Полигоны' },
-  { key: 'projects', label: 'Проекты и игры' },
+const HOME_CARDS: { key: SubTabKey; label: string; description: string }[] = [
+  { key: 'users', label: 'Пользователи', description: 'Роли и балансы участников' },
+  { key: 'teams', label: 'Команды', description: 'Список команд, командиры, балансы' },
+  { key: 'projects', label: 'Проекты и игры', description: 'Проекты, организаторы, игры, полигоны' },
 ];
 
 type Props = {
@@ -22,21 +23,46 @@ type Props = {
 };
 
 export function AdminScreen({ activeProjectId, onProjectsChanged }: Props) {
-  const [tab, setTab] = useState<SubTabKey>('users');
+  const [tab, setTab] = useState<SubTabKey>('home');
+  const [projectsSubTab, setProjectsSubTab] = useState<ProjectsSubTab>('projects');
+
+  if (tab === 'home') {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.homeContent}>
+        <View style={styles.cardsList}>
+          {HOME_CARDS.map((c) => (
+            <Pressable key={c.key} onPress={() => setTab(c.key)}>
+              <Card>
+                <Text style={styles.cardTitle}>{c.label}</Text>
+                <Text style={styles.cardDescription}>{c.description}</Text>
+              </Card>
+            </Pressable>
+          ))}
+        </View>
+      </ScrollView>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabBar} contentContainerStyle={styles.tabBarContent}>
-        {SUB_TABS.map((t) => (
-          <Chip key={t.key} label={t.label} selected={tab === t.key} onPress={() => setTab(t.key)} />
-        ))}
-      </ScrollView>
+      <Pressable onPress={() => setTab('home')}>
+        <Text style={styles.back}>‹ Админ</Text>
+      </Pressable>
+
+      {tab === 'projects' ? (
+        <View style={styles.subNav}>
+          <Chip label="Проекты" selected={projectsSubTab === 'projects'} onPress={() => setProjectsSubTab('projects')} />
+          <Chip label="Полигоны" selected={projectsSubTab === 'polygons'} onPress={() => setProjectsSubTab('polygons')} />
+        </View>
+      ) : null}
 
       <View style={styles.body}>
         {tab === 'users' ? <AdminUsersTab activeProjectId={activeProjectId} /> : null}
         {tab === 'teams' ? <AdminTeamsTab activeProjectId={activeProjectId} /> : null}
-        {tab === 'polygons' ? <PolygonsScreen /> : null}
-        {tab === 'projects' ? <AdminProjectsTab onProjectsChanged={onProjectsChanged} /> : null}
+        {tab === 'projects' && projectsSubTab === 'projects' ? (
+          <AdminProjectsTab onProjectsChanged={onProjectsChanged} />
+        ) : null}
+        {tab === 'projects' && projectsSubTab === 'polygons' ? <PolygonsScreen /> : null}
       </View>
     </View>
   );
@@ -47,16 +73,35 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  tabBar: {
-    flexGrow: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+  homeContent: {
+    padding: spacing.lg,
   },
-  tabBarContent: {
+  cardsList: {
+    gap: 10,
+  },
+  cardTitle: {
+    fontFamily: font.bodyBold,
+    fontSize: 16,
+    color: colors.text,
+  },
+  cardDescription: {
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: colors.textMuted,
+    marginTop: 4,
+  },
+  back: {
+    fontFamily: font.body,
+    color: colors.textMuted,
+    padding: spacing.lg,
+    paddingBottom: 0,
+  },
+  subNav: {
     flexDirection: 'row',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
+    flexWrap: 'wrap',
     gap: 8,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
   },
   body: {
     flex: 1,

@@ -7,7 +7,6 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
-import { DateTimeField } from './DateTimeField';
 import { GameManageScreen } from './GameManageScreen';
 import { colors, font, radii, spacing } from '../lib/theme';
 
@@ -40,12 +39,6 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
   const [editEconomyEnabled, setEditEconomyEnabled] = useState(false);
   const [editDefaultGameType, setEditDefaultGameType] = useState<GameType | null>(null);
 
-  const [newGameName, setNewGameName] = useState('');
-  const [newGamePolygonId, setNewGamePolygonId] = useState<string | null>(null);
-  const [newGameStartsAt, setNewGameStartsAt] = useState('');
-  const [newGameEndsAt, setNewGameEndsAt] = useState('');
-  const [newGameDescription, setNewGameDescription] = useState('');
-  const [newGameType, setNewGameType] = useState<GameType | null>(null);
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
@@ -69,12 +62,6 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     setError(null);
     setSelectedProject(project);
     setEditingProject(false);
-    setNewGameName('');
-    setNewGamePolygonId(null);
-    setNewGameStartsAt('');
-    setNewGameEndsAt('');
-    setNewGameDescription('');
-    setNewGameType(project.default_game_type);
 
     const [gamesRes, projectOrgRes] = await Promise.all([
       supabase
@@ -232,53 +219,6 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     }
   };
 
-  const createGame = async () => {
-    if (!selectedProject || !newGameName.trim() || !newGamePolygonId) return;
-    setError(null);
-    const startsAtDate = newGameStartsAt.trim() ? new Date(newGameStartsAt.trim()) : null;
-    if (startsAtDate && Number.isNaN(startsAtDate.getTime())) {
-      setError('Не удалось разобрать дату начала игры');
-      return;
-    }
-    const endsAtDate = newGameEndsAt.trim() ? new Date(newGameEndsAt.trim()) : null;
-    if (endsAtDate && Number.isNaN(endsAtDate.getTime())) {
-      setError('Не удалось разобрать дату окончания игры');
-      return;
-    }
-    const { data: userData } = await supabase.auth.getUser();
-    const { data: createdGame, error } = await supabase
-      .from('games')
-      .insert({
-        project_id: selectedProject.id,
-        name: newGameName.trim(),
-        polygon_id: newGamePolygonId,
-        starts_at: startsAtDate ? startsAtDate.toISOString() : null,
-        ends_at: endsAtDate ? endsAtDate.toISOString() : null,
-        description: newGameDescription.trim() || null,
-        game_type: newGameType,
-        created_by: userData.user?.id,
-      })
-      .select('id')
-      .single();
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    if (createdGame) {
-      await supabase.from('game_sides').insert([
-        { game_id: createdGame.id, name: 'Белые' },
-        { game_id: createdGame.id, name: 'Красные' },
-      ]);
-    }
-    setNewGameName('');
-    setNewGamePolygonId(null);
-    setNewGameStartsAt('');
-    setNewGameEndsAt('');
-    setNewGameDescription('');
-    setNewGameType(selectedProject.default_game_type);
-    openProject(selectedProject);
-  };
-
   const deleteGame = async (game: Game) => {
     if (!selectedProject) return;
     setError(null);
@@ -431,49 +371,6 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
           ))}
         </View>
 
-        <Text style={styles.sectionTitle}>Новая игра</Text>
-        <TextField style={styles.input} label="Название игры" value={newGameName} onChangeText={setNewGameName} />
-        <DateTimeField
-          style={styles.input}
-          label="Дата начала"
-          placeholder="Необязательно, ДД-ММ-ГГГГ ЧЧ:ММ"
-          value={newGameStartsAt}
-          onChangeText={setNewGameStartsAt}
-        />
-        <DateTimeField
-          style={styles.input}
-          label="Дата окончания"
-          placeholder="Необязательно, ДД-ММ-ГГГГ ЧЧ:ММ"
-          value={newGameEndsAt}
-          onChangeText={setNewGameEndsAt}
-        />
-        <TextField
-          style={[styles.input, styles.textArea]}
-          label="Описание сценария"
-          placeholder="Необязательно"
-          value={newGameDescription}
-          onChangeText={setNewGameDescription}
-          multiline
-          numberOfLines={4}
-        />
-        <Text style={styles.label}>Тип игры</Text>
-        <View style={styles.chips}>
-          <Chip label="—" selected={!newGameType} onPress={() => setNewGameType(null)} />
-          {GAME_TYPES.map((t) => (
-            <Chip key={t} label={GAME_TYPE_LABEL[t]} selected={newGameType === t} onPress={() => setNewGameType(t)} />
-          ))}
-        </View>
-        <Text style={styles.label}>Полигон</Text>
-        {polygons.length === 0 ? (
-          <Text style={styles.label}>Нет ни одного полигона — сначала создайте его во вкладке «Полигоны».</Text>
-        ) : (
-          <View style={styles.chips}>
-            {polygons.map((p) => (
-              <Chip key={p.id} label={p.name} selected={newGamePolygonId === p.id} onPress={() => setNewGamePolygonId(p.id)} />
-            ))}
-          </View>
-        )}
-        <Button title="Добавить игру" onPress={createGame} style={styles.addButtonSpacing} />
       </ScrollView>
     );
   }
