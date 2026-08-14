@@ -23,6 +23,7 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
+import { DateTimeField } from './DateTimeField';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 import { ImageLightbox } from './ImageLightbox';
 import { TasksSection } from './TasksSection';
@@ -89,6 +90,11 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [editDescription, setEditDescription] = useState('');
   const [editGameType, setEditGameType] = useState<GameType | null>(null);
   const [editPolygonId, setEditPolygonId] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'sides' | 'participants' | 'applications' | 'tasks'>(
+    'overview'
+  );
+  const [applicationsFilter, setApplicationsFilter] = useState<'new' | 'approved'>('new');
 
   const loadTraders = useCallback(async () => {
     const { data } = await supabase
@@ -456,7 +462,14 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     );
   }
 
-  const withoutSide = participants.filter((p) => !p.effective_side_id);
+  const confirmedBySide = (sideId: string) =>
+    participants.filter((p) => p.effective_side_id === sideId && p.status === 'confirmed');
+  const confirmedWithoutSide = participants.filter((p) => !p.effective_side_id && p.status === 'confirmed');
+  const pendingRows = participants.filter((p) => p.status === 'pending');
+  const approvedRows = [...participants]
+    .filter((p) => p.status === 'confirmed')
+    .sort((a, b) => b.created_at.localeCompare(a.created_at));
+  const applicationRows = applicationsFilter === 'new' ? pendingRows : approvedRows;
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -466,24 +479,22 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
+      <View style={styles.subNav}>
+        <Chip label="Обзор" selected={activeTab === 'overview'} onPress={() => setActiveTab('overview')} />
+        <Chip label="Стороны" selected={activeTab === 'sides'} onPress={() => setActiveTab('sides')} />
+        <Chip label="Участники" selected={activeTab === 'participants'} onPress={() => setActiveTab('participants')} />
+        <Chip label="Заявки" selected={activeTab === 'applications'} onPress={() => setActiveTab('applications')} />
+        <Chip label="Задания" selected={activeTab === 'tasks'} onPress={() => setActiveTab('tasks')} />
+      </View>
+
+      {activeTab === 'overview' ? (
+        <>
       {editingCard ? (
         <>
           <Text style={styles.sectionTitle}>Карточка игры</Text>
           <TextField style={styles.input} label="Название" value={editName} onChangeText={setEditName} />
-          <TextField
-            style={styles.input}
-            label="Дата начала"
-            placeholder="Напр. 2026-08-01 10:00"
-            value={editStartsAt}
-            onChangeText={setEditStartsAt}
-          />
-          <TextField
-            style={styles.input}
-            label="Дата окончания"
-            placeholder="Напр. 2026-08-01 18:00"
-            value={editEndsAt}
-            onChangeText={setEditEndsAt}
-          />
+          <DateTimeField style={styles.input} label="Дата начала" value={editStartsAt} onChangeText={setEditStartsAt} />
+          <DateTimeField style={styles.input} label="Дата окончания" value={editEndsAt} onChangeText={setEditEndsAt} />
           <TextField
             style={[styles.input, styles.textArea]}
             label="Описание сценария"
@@ -604,61 +615,32 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
         />
       </View>
 
+      <Button title="Удалить игру" variant="danger" onPress={deleteGame} style={styles.dangerSpacing} />
+        </>
+      ) : null}
+
+      {activeTab === 'sides' ? (
+        <>
       <Text style={styles.sectionTitle}>Стороны</Text>
       <View style={styles.cardsList}>
-        {sides.map((side) => {
-          const roster = participants.filter((p) => p.effective_side_id === side.id);
-          return (
-            <Card key={side.id}>
-              <Text style={styles.cardTitle}>{side.name}</Text>
-              <Text style={styles.label}>Командир стороны</Text>
-              <View style={styles.chips}>
-                <Chip label="—" selected={!side.commander_id} onPress={() => setSideCommander(side.id, null)} />
-                {profiles.map((p) => (
-                  <Chip
-                    key={p.id}
-                    label={p.full_name || '(без имени)'}
-                    selected={side.commander_id === p.id}
-                    onPress={() => setSideCommander(side.id, p.id)}
-                  />
-                ))}
-              </View>
-
-              <Text style={styles.label}>Участники</Text>
-              {roster.length === 0 ? (
-                <Text style={styles.label}>Пока никого</Text>
-              ) : (
-                roster.map((row) => (
-                  <ParticipantRowView
-                    key={row.id}
-                    row={row}
-                    sides={sides}
-                    onConfirm={() => confirmParticipant(row)}
-                    onRemove={() => removeParticipant(row)}
-                    onMove={(sideId) => moveParticipant(row, sideId)}
-                  />
-                ))
-              )}
-            </Card>
-          );
-        })}
+        {sides.map((side) => (
+          <Card key={side.id}>
+            <Text style={styles.cardTitle}>{side.name}</Text>
+            <Text style={styles.label}>Командир стороны</Text>
+            <View style={styles.chips}>
+              <Chip label="—" selected={!side.commander_id} onPress={() => setSideCommander(side.id, null)} />
+              {profiles.map((p) => (
+                <Chip
+                  key={p.id}
+                  label={p.full_name || '(без имени)'}
+                  selected={side.commander_id === p.id}
+                  onPress={() => setSideCommander(side.id, p.id)}
+                />
+              ))}
+            </View>
+          </Card>
+        ))}
       </View>
-
-      {withoutSide.length > 0 ? (
-        <Card style={styles.withoutSideCard}>
-          <Text style={styles.cardTitle}>Без стороны</Text>
-          {withoutSide.map((row) => (
-            <ParticipantRowView
-              key={row.id}
-              row={row}
-              sides={sides}
-              onConfirm={() => confirmParticipant(row)}
-              onRemove={() => removeParticipant(row)}
-              onMove={(sideId) => moveParticipant(row, sideId)}
-            />
-          ))}
-        </Card>
-      ) : null}
 
       <Text style={styles.sectionTitle}>Новая сторона</Text>
       <TextField
@@ -738,11 +720,91 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
         disabled={!newTraderProfileId || newTraderSideIds.length === 0}
         style={styles.addButtonSpacing}
       />
+        </>
+      ) : null}
 
+      {activeTab === 'participants' ? (
+        <>
+      <Text style={styles.sectionTitle}>Участники</Text>
+      <View style={styles.cardsList}>
+        {sides.map((side) => {
+          const roster = confirmedBySide(side.id);
+          return (
+            <Card key={side.id}>
+              <Text style={styles.cardTitle}>{side.name}</Text>
+              {roster.length === 0 ? (
+                <Text style={styles.label}>Пока никого</Text>
+              ) : (
+                roster.map((row) => (
+                  <ParticipantRowView
+                    key={row.id}
+                    row={row}
+                    sides={sides}
+                    onConfirm={() => confirmParticipant(row)}
+                    onRemove={() => removeParticipant(row)}
+                    onMove={(sideId) => moveParticipant(row, sideId)}
+                  />
+                ))
+              )}
+            </Card>
+          );
+        })}
+      </View>
+
+      {confirmedWithoutSide.length > 0 ? (
+        <Card style={styles.withoutSideCard}>
+          <Text style={styles.cardTitle}>Без стороны</Text>
+          {confirmedWithoutSide.map((row) => (
+            <ParticipantRowView
+              key={row.id}
+              row={row}
+              sides={sides}
+              onConfirm={() => confirmParticipant(row)}
+              onRemove={() => removeParticipant(row)}
+              onMove={(sideId) => moveParticipant(row, sideId)}
+            />
+          ))}
+        </Card>
+      ) : null}
+        </>
+      ) : null}
+
+      {activeTab === 'applications' ? (
+        <>
+      <Text style={styles.sectionTitle}>Заявки</Text>
+      <View style={styles.chips}>
+        <Chip label="Новые" selected={applicationsFilter === 'new'} onPress={() => setApplicationsFilter('new')} />
+        <Chip
+          label="Одобренные"
+          selected={applicationsFilter === 'approved'}
+          onPress={() => setApplicationsFilter('approved')}
+        />
+      </View>
+      {applicationRows.length === 0 ? (
+        <Text style={styles.label}>
+          {applicationsFilter === 'new' ? 'Новых заявок нет' : 'Пока никого не подтвердили'}
+        </Text>
+      ) : (
+        applicationRows.map((row) => (
+          <ParticipantRowView
+            key={row.id}
+            row={row}
+            sides={sides}
+            onConfirm={() => confirmParticipant(row)}
+            onRemove={() => removeParticipant(row)}
+            onMove={(sideId) => moveParticipant(row, sideId)}
+          />
+        ))
+      )}
+        </>
+      ) : null}
+
+      {activeTab === 'tasks' ? (
+        <>
       <Text style={styles.sectionTitle}>Задания</Text>
       <TasksSection gameId={game.id} isOrganizer />
-
-      <Button title="Удалить игру" variant="danger" onPress={deleteGame} style={styles.dangerSpacing} />
+        </>
+      ) : null}
 
       <ImageLightbox uri={lightboxUri} onClose={() => setLightboxUri(null)} />
     </ScrollView>
@@ -835,6 +897,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     marginTop: spacing.lg,
     marginBottom: spacing.sm + 2,
+  },
+  subNav: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.md,
   },
   cardsList: {
     gap: 10,

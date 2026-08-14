@@ -7,6 +7,7 @@ import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
+import { DateTimeField } from './DateTimeField';
 import { GameManageScreen } from './GameManageScreen';
 import { colors, font, radii, spacing } from '../lib/theme';
 
@@ -432,17 +433,17 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
 
         <Text style={styles.sectionTitle}>Новая игра</Text>
         <TextField style={styles.input} label="Название игры" value={newGameName} onChangeText={setNewGameName} />
-        <TextField
+        <DateTimeField
           style={styles.input}
           label="Дата начала"
-          placeholder="Необязательно, напр. 2026-08-01 10:00"
+          placeholder="Необязательно, ДД-ММ-ГГГГ ЧЧ:ММ"
           value={newGameStartsAt}
           onChangeText={setNewGameStartsAt}
         />
-        <TextField
+        <DateTimeField
           style={styles.input}
           label="Дата окончания"
-          placeholder="Необязательно, напр. 2026-08-01 18:00"
+          placeholder="Необязательно, ДД-ММ-ГГГГ ЧЧ:ММ"
           value={newGameEndsAt}
           onChangeText={setNewGameEndsAt}
         />

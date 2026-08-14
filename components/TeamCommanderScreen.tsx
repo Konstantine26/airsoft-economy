@@ -1,7 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
 import { Avatar } from './Avatar';
@@ -243,6 +243,21 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
     }
   };
 
+  const handleRosterPress = (row: RosterRow) => {
+    if (registeredProfiles.get(row.profile_id) === 'confirmed') {
+      Alert.alert(
+        'Убрать из состава?',
+        `${row.full_name} уже подтверждён(а) организатором на эту игру. Убрать из состава?`,
+        [
+          { text: 'Отмена', style: 'cancel' },
+          { text: 'Убрать', style: 'destructive', onPress: () => toggleParticipant(row.profile_id) },
+        ]
+      );
+      return;
+    }
+    toggleParticipant(row.profile_id);
+  };
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -285,7 +300,7 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
               const status = registeredProfiles.get(row.profile_id);
               return (
                 <Card key={row.id} style={styles.rosterRowCard}>
-                  <Pressable style={styles.rosterRow} onPress={() => toggleParticipant(row.profile_id)}>
+                  <Pressable style={styles.rosterRow} onPress={() => handleRosterPress(row)}>
                     <View style={styles.rosterIdentity}>
                       <Avatar uri={row.avatar_url} name={row.full_name} size={22} />
                       <Text style={styles.rosterName}>{row.full_name}</Text>

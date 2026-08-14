@@ -5,6 +5,7 @@ import { GAME_TYPES, GAME_TYPE_LABEL, type GameType } from '../lib/gameTypes';
 import { Button } from './Button';
 import { Chip } from './Chip';
 import { TextField } from './TextField';
+import { DateTimeField } from './DateTimeField';
 import { colors, font, radii, spacing } from '../lib/theme';
 import type { Polygon, Profile, Project } from '../lib/database.types';
 
@@ -194,17 +195,17 @@ export function CreateGameWizard({ projects, onDone, onCancel }: Props) {
 
         {step === 1 ? (
           <>
-            <TextField
+            <DateTimeField
               style={styles.input}
               label="Дата начала"
-              placeholder="Необязательно, напр. 2026-08-01 10:00"
+              placeholder="Необязательно, ДД-ММ-ГГГГ ЧЧ:ММ"
               value={startsAt}
               onChangeText={setStartsAt}
             />
-            <TextField
+            <DateTimeField
               style={styles.input}
               label="Дата окончания"
-              placeholder="Необязательно, напр. 2026-08-01 18:00"
+              placeholder="Необязательно, ДД-ММ-ГГГГ ЧЧ:ММ"
               value={endsAt}
               onChangeText={setEndsAt}
             />
@@ -282,8 +283,8 @@ export function CreateGameWizard({ projects, onDone, onCancel }: Props) {
             <SummaryRow label="Проект" value={selectedProject?.name ?? '—'} />
             <SummaryRow label="Название" value={name || '—'} />
             <SummaryRow label="Тип игры" value={gameType ? GAME_TYPE_LABEL[gameType] : '—'} />
-            <SummaryRow label="Начало" value={startsAt || '—'} />
-            <SummaryRow label="Окончание" value={endsAt || '—'} />
+            <SummaryRow label="Начало" value={formatDateTimeSummary(startsAt)} />
+            <SummaryRow label="Окончание" value={formatDateTimeSummary(endsAt)} />
             <SummaryRow label="Полигон" value={polygons.find((p) => p.id === polygonId)?.name ?? '—'} />
             <SummaryRow
               label="Стороны"
@@ -316,6 +317,12 @@ export function CreateGameWizard({ projects, onDone, onCancel }: Props) {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+function formatDateTimeSummary(value: string): string {
+  if (!value.trim()) return '—';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
 }
 
 function SummaryRow({ label, value }: { label: string; value: string }) {
