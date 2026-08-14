@@ -136,6 +136,14 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
 
     setSubmitting(true);
     try {
+      const { data: authData } = await supabase.auth.getUser();
+      console.log('DEBUG create task', {
+        authUid: authData.user?.id,
+        authEmail: authData.user?.email,
+        customerProfileId,
+        gameId,
+        sideId,
+      });
       const { data: task, error: insertError } = await supabase
         .from('tasks')
         .insert({
@@ -178,7 +186,14 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
       onCreated();
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Не удалось создать задание');
+      console.error('Не удалось создать задание', e);
+      const message =
+        e instanceof Error
+          ? e.message
+          : e && typeof e === 'object' && 'message' in e && typeof (e as { message: unknown }).message === 'string'
+            ? (e as { message: string }).message
+            : null;
+      setError(message || 'Не удалось создать задание');
     } finally {
       setSubmitting(false);
     }
