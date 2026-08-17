@@ -18,19 +18,12 @@ import { PlayerTeamScreen } from './PlayerTeamScreen';
 import { TeamsScreen } from './TeamsScreen';
 import { TraderScreen } from './TraderScreen';
 import { WalletScreen } from './WalletScreen';
+import { HelpScreen } from './HelpScreen';
+import { OnboardingCarousel } from './OnboardingCarousel';
 import { colors, font, spacing } from '../lib/theme';
+import { ROLE_META, type RoleKey } from '../lib/roles';
+import { hasSeenOnboarding, markOnboardingSeen } from '../lib/onboardingStorage';
 import type { Project } from '../lib/database.types';
-
-type RoleKey = 'admin' | 'organizer' | 'sideCommander' | 'teamCommander' | 'trader' | 'player';
-
-const ROLE_META: Record<RoleKey, { label: string; icon: keyof typeof MaterialCommunityIcons.glyphMap }> = {
-  admin: { label: 'Админ', icon: 'shield-account-outline' },
-  organizer: { label: 'Организатор', icon: 'clipboard-list-outline' },
-  sideCommander: { label: 'Командующий стороной', icon: 'flag-outline' },
-  teamCommander: { label: 'Командир команды', icon: 'account-group-outline' },
-  trader: { label: 'Торговец', icon: 'storefront-outline' },
-  player: { label: 'Игрок', icon: 'home-outline' },
-};
 
 type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
 type OrganizerTab = 'overview' | 'games' | 'economy';
@@ -47,6 +40,8 @@ export function Dashboard() {
   const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
   const [playerTab, setPlayerTab] = useState<PlayerTab>('home');
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
+  const [helpVisible, setHelpVisible] = useState(false);
+  const [onboardingRole, setOnboardingRole] = useState<RoleKey | null>(null);
 
   const openGame = useCallback((game: { id: string; project_id: string }) => {
     setActiveProjectId(game.project_id);
@@ -120,6 +115,29 @@ export function Dashboard() {
     setActiveRole((prev) => (prev && availableRoles.includes(prev) ? prev : (availableRoles[0] ?? null)));
   }, [availableRoles]);
 
+  useEffect(() => {
+    if (!profile || !activeRole) return;
+    let cancelled = false;
+    hasSeenOnboarding(profile.id, activeRole).then((seen) => {
+      if (!cancelled && !seen) setOnboardingRole(activeRole);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile, activeRole]);
+
+  const closeOnboarding = useCallback(() => {
+    if (profile && onboardingRole) {
+      markOnboardingSeen(profile.id, onboardingRole);
+    }
+    setOnboardingRole(null);
+  }, [profile, onboardingRole]);
+
+  const replayOnboarding = useCallback((role: RoleKey) => {
+    setHelpVisible(false);
+    setOnboardingRole(role);
+  }, []);
+
   const activeProject = useMemo(() => projects.find((p) => p.id === activeProjectId) ?? null, [projects, activeProjectId]);
   const economyProjectId = activeProject?.economy_enabled ? activeProjectId : null;
 
@@ -147,6 +165,14 @@ export function Dashboard() {
         </View>
 
         <View style={styles.headerRight}>
+          <Pressable
+            onPress={() => setHelpVisible(true)}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Открыть справку"
+          >
+            <MaterialCommunityIcons name="help-circle-outline" size={19} color={colors.textDim} />
+          </Pressable>
           <View style={styles.notificationSlot} accessible={false}>
             <MaterialCommunityIcons name="bell-outline" size={18} color={colors.textDim} />
           </View>
@@ -245,6 +271,9 @@ export function Dashboard() {
           <AdminScreen activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
         ) : null}
       </View>
+
+      <HelpScreen visible={helpVisible} onClose={() => setHelpVisible(false)} onReplayOnboarding={replayOnboarding} />
+      <OnboardingCarousel role={onboardingRole} onClose={closeOnboarding} />
     </View>
   );
 }
