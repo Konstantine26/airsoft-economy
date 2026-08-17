@@ -141,6 +141,11 @@ export function Dashboard() {
   const activeProject = useMemo(() => projects.find((p) => p.id === activeProjectId) ?? null, [projects, activeProjectId]);
   const economyProjectId = activeProject?.economy_enabled ? activeProjectId : null;
 
+  const projectSides = useMemo(
+    () => capabilities.commandedSides.filter((s) => s.project_id === activeProjectId),
+    [capabilities.commandedSides, activeProjectId]
+  );
+
   const roleItems = useMemo<TabBarItem<RoleKey>[]>(
     () => availableRoles.map((role) => ({ key: role, label: ROLE_META[role].label, icon: ROLE_META[role].icon })),
     [availableRoles]
@@ -234,12 +239,17 @@ export function Dashboard() {
             {playerTab === 'home' ? (
               <PlayerHomeScreen
                 ownMembership={capabilities.ownMembership}
+                activeProjectId={activeProjectId}
                 onGoToGames={() => setPlayerTab('games')}
                 onOpenGame={openGame}
               />
             ) : null}
             {playerTab === 'games' ? (
-              <PlayerGamesScreen ownMembership={capabilities.ownMembership} onOpenGame={openGame} />
+              <PlayerGamesScreen
+                ownMembership={capabilities.ownMembership}
+                activeProjectId={activeProjectId}
+                onOpenGame={openGame}
+              />
             ) : null}
             {playerTab === 'team' ? (
               <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
@@ -256,17 +266,23 @@ export function Dashboard() {
               <Chip label="Экономика проекта" selected={organizerTab === 'economy'} onPress={() => setOrganizerTab('economy')} />
             </View>
             {organizerTab === 'overview' || organizerTab === 'games' ? (
-              <OrganizerScreen view={organizerTab} />
+              <OrganizerScreen view={organizerTab} activeProjectId={activeProjectId} />
             ) : null}
             {organizerTab === 'economy' ? <TeamsScreen projectId={economyProjectId} /> : null}
           </>
         ) : null}
 
         {activeRole === 'teamCommander' ? (
-          <TeamCommanderScreen teams={capabilities.commandedTeams} projectId={economyProjectId} />
+          <TeamCommanderScreen
+            teams={capabilities.commandedTeams}
+            projectId={economyProjectId}
+            activeProjectId={activeProjectId}
+          />
         ) : null}
-        {activeRole === 'sideCommander' ? <SideCommanderScreen sides={capabilities.commandedSides} /> : null}
-        {activeRole === 'trader' ? <TraderScreen traderGames={capabilities.traderGames} /> : null}
+        {activeRole === 'sideCommander' ? <SideCommanderScreen sides={projectSides} /> : null}
+        {activeRole === 'trader' ? (
+          <TraderScreen traderGames={capabilities.traderGames} activeProjectId={activeProjectId} />
+        ) : null}
         {activeRole === 'admin' ? (
           <AdminScreen activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
         ) : null}

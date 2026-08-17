@@ -12,9 +12,10 @@ type GameWithRelations = Game & { project: Project | null; polygon: Polygon | nu
 
 type Props = {
   traderGames: TraderGame[];
+  activeProjectId: string | null;
 };
 
-export function TraderScreen({ traderGames }: Props) {
+export function TraderScreen({ traderGames, activeProjectId }: Props) {
   const [loading, setLoading] = useState(true);
   const [games, setGames] = useState<GameWithRelations[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
@@ -32,9 +33,10 @@ export function TraderScreen({ traderGames }: Props) {
       .select('*, project:projects(*), polygon:polygons(*)')
       .in('id', gameIds)
       .order('created_at', { ascending: false });
-    setGames((data as GameWithRelations[]) ?? []);
+    const rows = ((data as GameWithRelations[]) ?? []).filter((g) => g.project_id === activeProjectId);
+    setGames(rows);
     setLoading(false);
-  }, [traderGames]);
+  }, [traderGames, activeProjectId]);
 
   useEffect(() => {
     load();
@@ -67,7 +69,9 @@ export function TraderScreen({ traderGames }: Props) {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Торговец</Text>
       {games.length === 0 ? (
-        <Text style={styles.label}>Вы пока не назначены торговцем ни на одну игру</Text>
+        <Text style={styles.label}>
+          {traderGames.length === 0 ? 'Вы пока не назначены торговцем ни на одну игру' : 'Нет игр в этом проекте'}
+        </Text>
       ) : (
         <View style={styles.cardsList}>
           {games.map((game) => (

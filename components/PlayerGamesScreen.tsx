@@ -9,6 +9,7 @@ import { colors, font, radii, spacing } from '../lib/theme';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
+  activeProjectId: string | null;
   onOpenGame: (game: { id: string; project_id: string }) => void;
 };
 
@@ -30,7 +31,7 @@ const STATE_ORDER: Record<GameState, number> = {
   past: 3,
 };
 
-export function PlayerGamesScreen({ ownMembership, onOpenGame }: Props) {
+export function PlayerGamesScreen({ ownMembership, activeProjectId, onOpenGame }: Props) {
   const { profile } = useAuth();
   const [games, setGames] = useState<GameRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,6 +56,7 @@ export function PlayerGamesScreen({ ownMembership, onOpenGame }: Props) {
     const now = Date.now();
     const rows: GameRow[] = [];
     for (const game of (gamesRes.data as any[]) ?? []) {
+      if (game.project_id !== activeProjectId) continue;
       const ended = !!game.ends_at && new Date(game.ends_at).getTime() <= now;
       const status = statusMap.get(game.id);
       let state: GameState;
@@ -71,7 +73,7 @@ export function PlayerGamesScreen({ ownMembership, onOpenGame }: Props) {
     }
     rows.sort((a, b) => STATE_ORDER[a.state] - STATE_ORDER[b.state] || (a.starts_at ?? '').localeCompare(b.starts_at ?? ''));
     setGames(rows);
-  }, [profile]);
+  }, [profile, activeProjectId]);
 
   useEffect(() => {
     load().finally(() => setLoading(false));

@@ -19,11 +19,12 @@ type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
 type Props = {
   teams: Team[];
   projectId: string | null;
+  activeProjectId: string | null;
 };
 
 const TEAM_AVATAR_BUCKET = 'team-avatars';
 
-export function TeamCommanderScreen({ teams, projectId }: Props) {
+export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
   const [activeTab, setActiveTab] = useState<'team' | 'games' | 'budget'>('team');
   const [addQuery, setAddQuery] = useState('');
@@ -106,12 +107,14 @@ export function TeamCommanderScreen({ teams, projectId }: Props) {
       .from('games')
       .select('*, project:projects(name), polygon:polygons(*)')
       .order('created_at', { ascending: false });
-    const rows: GameWithProject[] = (data ?? []).map((row: any) => ({
-      ...row,
-      project_name: row.project?.name ?? '',
-    }));
+    const rows: GameWithProject[] = (data ?? [])
+      .filter((row: any) => row.project_id === activeProjectId)
+      .map((row: any) => ({
+        ...row,
+        project_name: row.project?.name ?? '',
+      }));
     setGames(rows);
-  }, []);
+  }, [activeProjectId]);
 
   const loadBalance = useCallback(async () => {
     if (!projectId) {

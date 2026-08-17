@@ -24,9 +24,10 @@ function gameStatusLabel(game: GameWithRelations): string {
 
 type Props = {
   view: OrganizerView;
+  activeProjectId: string | null;
 };
 
-export function OrganizerScreen({ view }: Props) {
+export function OrganizerScreen({ view, activeProjectId }: Props) {
   const { profile } = useAuth();
   const isAdmin = profile?.role === 'admin';
 
@@ -174,10 +175,11 @@ export function OrganizerScreen({ view }: Props) {
   }
 
   const now = Date.now();
-  const upcomingGames = allGames.filter((g) => !g.ends_at || new Date(g.ends_at).getTime() > now).slice(0, 3);
-  const nearestGame = upcomingGames[0] ?? allGames[0] ?? null;
-  const totalPending = Object.values(statsByGame).reduce((sum, s) => sum + s.pendingCount, 0);
-  const totalConfirmed = Object.values(statsByGame).reduce((sum, s) => sum + s.confirmedCount, 0);
+  const projectGames = allGames.filter((g) => g.project_id === activeProjectId);
+  const upcomingGames = projectGames.filter((g) => !g.ends_at || new Date(g.ends_at).getTime() > now).slice(0, 3);
+  const nearestGame = upcomingGames[0] ?? projectGames[0] ?? null;
+  const totalPending = projectGames.reduce((sum, g) => sum + (statsByGame[g.id]?.pendingCount ?? 0), 0);
+  const totalConfirmed = projectGames.reduce((sum, g) => sum + (statsByGame[g.id]?.confirmedCount ?? 0), 0);
 
   return (
     <ScrollView
@@ -239,11 +241,11 @@ export function OrganizerScreen({ view }: Props) {
             disabled={organizerProjects.length === 0}
             style={styles.createGameButton}
           />
-          {allGames.length === 0 ? (
+          {projectGames.length === 0 ? (
             <Text style={styles.label}>Игр пока нет</Text>
           ) : (
             <View style={styles.cardsList}>
-              {allGames.map((game) => (
+              {projectGames.map((game) => (
                 <GameRow key={game.id} game={game} stats={statsByGame[game.id]} onPress={() => setSelectedGameId(game.id)} />
               ))}
             </View>

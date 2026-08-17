@@ -10,13 +10,14 @@ import { colors, font, spacing } from '../lib/theme';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
+  activeProjectId: string | null;
   onGoToGames: () => void;
   onOpenGame: (game: { id: string; project_id: string }) => void;
 };
 
 type ConfirmedGame = Game & { project: Project | null };
 
-export function PlayerHomeScreen({ ownMembership, onGoToGames, onOpenGame }: Props) {
+export function PlayerHomeScreen({ ownMembership, activeProjectId, onGoToGames, onOpenGame }: Props) {
   const { profile } = useAuth();
   const [nextGame, setNextGame] = useState<ConfirmedGame | null>(null);
   const [loading, setLoading] = useState(true);
@@ -36,10 +37,13 @@ export function PlayerHomeScreen({ ownMembership, onGoToGames, onOpenGame }: Pro
     const now = Date.now();
     const games = ((data ?? []) as any[])
       .map((row) => row.game as ConfirmedGame | null)
-      .filter((g): g is ConfirmedGame => !!g && (!g.ends_at || new Date(g.ends_at).getTime() > now))
+      .filter(
+        (g): g is ConfirmedGame =>
+          !!g && (!g.ends_at || new Date(g.ends_at).getTime() > now) && g.project_id === activeProjectId
+      )
       .sort((a, b) => (a.starts_at ?? '').localeCompare(b.starts_at ?? ''));
     setNextGame(games[0] ?? null);
-  }, [profile]);
+  }, [profile, activeProjectId]);
 
   useEffect(() => {
     load().finally(() => setLoading(false));

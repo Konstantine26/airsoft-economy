@@ -17,12 +17,16 @@ type TeamWithRoster = {
 };
 
 export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
-  const [activeSide, setActiveSide] = useState<GameSide>(sides[0]);
+  const [activeSide, setActiveSide] = useState<GameSide | null>(sides[0] ?? null);
   const [activeTab, setActiveTab] = useState<'side' | 'teams' | 'tasks'>('side');
   const [gameLabel, setGameLabel] = useState('');
   const [teams, setTeams] = useState<TeamWithRoster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setActiveSide((prev) => (prev && sides.some((s) => s.id === prev.id) ? prev : (sides[0] ?? null)));
+  }, [sides]);
 
   const load = useCallback(async (side: GameSide) => {
     setLoading(true);
@@ -82,8 +86,17 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
   }, []);
 
   useEffect(() => {
-    load(activeSide);
+    if (activeSide) load(activeSide);
   }, [activeSide, load]);
+
+  if (!activeSide) {
+    return (
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Text style={styles.title}>Моя сторона</Text>
+        <Text style={styles.label}>У вас нет сторон в этом проекте</Text>
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
