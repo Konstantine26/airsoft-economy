@@ -60,7 +60,14 @@ export function PlayerHomeScreen({ ownMembership, onGoToGames, onOpenGame }: Pro
   }
 
   if (openGameId) {
-    return <GameCardScreen gameId={openGameId} ownMembership={ownMembership} onClose={() => setOpenGameId(null)} />;
+    return (
+      <GameCardScreen
+        gameId={openGameId}
+        ownMembership={ownMembership}
+        onClose={() => setOpenGameId(null)}
+        showRegistration={false}
+      />
+    );
   }
 
   return (

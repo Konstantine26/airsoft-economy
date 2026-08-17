@@ -41,9 +41,10 @@ type Props = {
   gameId: string;
   ownMembership: (TeamMember & { team: Team }) | null;
   onClose: () => void;
+  showRegistration?: boolean;
 };
 
-export function GameCardScreen({ gameId, ownMembership, onClose }: Props) {
+export function GameCardScreen({ gameId, ownMembership, onClose, showRegistration = true }: Props) {
   const { profile } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -274,60 +275,64 @@ export function GameCardScreen({ gameId, ownMembership, onClose }: Props) {
         </>
       ) : null}
 
-      <Text style={styles.sectionTitle}>Регистрация</Text>
-      <Pressable
-        style={styles.checkboxRow}
-        onPress={() => setRulesAccepted((v) => !v)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: rulesAccepted }}
-        accessibilityLabel="Ознакомлен и согласен с правилами игры"
-      >
-        <View style={[styles.checkbox, rulesAccepted && styles.checkboxChecked]} />
-        <Text style={styles.checkboxLabel}>Ознакомлен и согласен с правилами игры</Text>
-      </Pressable>
-
-      {ownMembership ? (
+      {showRegistration ? (
         <>
-          <Text style={styles.label}>Сторона команды {ownMembership.team.name}</Text>
-          <Text style={styles.label}>
-            {teamSideId ? (sides.find((s) => s.id === teamSideId)?.name ?? '—') : 'Командир ещё не выбрал сторону'}
-          </Text>
-          <Text style={styles.label}>
-            {alreadyRegistered
-              ? myStatus === 'confirmed'
-                ? 'Вы подтверждены на игру'
-                : 'Заявка подана, ожидает подтверждения'
-              : 'Вы ещё не зарегистрированы'}
-          </Text>
-        </>
-      ) : (
-        <>
-          <Text style={styles.label}>Сторона</Text>
-          <View style={styles.chips}>
-            {sides.map((side) => (
-              <Chip key={side.id} label={side.name} selected={noTeamSideId === side.id} onPress={() => setNoTeamSideId(side.id)} />
-            ))}
-          </View>
-          <Text style={styles.label}>
-            {alreadyRegistered
-              ? myStatus === 'confirmed'
-                ? 'Вы подтверждены на игру'
-                : 'Заявка подана, ожидает подтверждения'
-              : 'Вы ещё не зарегистрированы'}
-          </Text>
-        </>
-      )}
+          <Text style={styles.sectionTitle}>Регистрация</Text>
+          <Pressable
+            style={styles.checkboxRow}
+            onPress={() => setRulesAccepted((v) => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: rulesAccepted }}
+            accessibilityLabel="Ознакомлен и согласен с правилами игры"
+          >
+            <View style={[styles.checkbox, rulesAccepted && styles.checkboxChecked]} />
+            <Text style={styles.checkboxLabel}>Ознакомлен и согласен с правилами игры</Text>
+          </Pressable>
 
-      {alreadyRegistered ? (
-        <Button title="Отменить заявку" variant="danger" onPress={handleCancelPress} style={styles.registerButton} />
-      ) : (
-        <Button
-          title={submitting ? 'Отправка…' : 'Зарегистрироваться'}
-          onPress={register}
-          disabled={!canRegister || submitting}
-          style={styles.registerButton}
-        />
-      )}
+          {ownMembership ? (
+            <>
+              <Text style={styles.label}>Сторона команды {ownMembership.team.name}</Text>
+              <Text style={styles.label}>
+                {teamSideId ? (sides.find((s) => s.id === teamSideId)?.name ?? '—') : 'Командир ещё не выбрал сторону'}
+              </Text>
+              <Text style={styles.label}>
+                {alreadyRegistered
+                  ? myStatus === 'confirmed'
+                    ? 'Вы подтверждены на игру'
+                    : 'Заявка подана, ожидает подтверждения'
+                  : 'Вы ещё не зарегистрированы'}
+              </Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.label}>Сторона</Text>
+              <View style={styles.chips}>
+                {sides.map((side) => (
+                  <Chip key={side.id} label={side.name} selected={noTeamSideId === side.id} onPress={() => setNoTeamSideId(side.id)} />
+                ))}
+              </View>
+              <Text style={styles.label}>
+                {alreadyRegistered
+                  ? myStatus === 'confirmed'
+                    ? 'Вы подтверждены на игру'
+                    : 'Заявка подана, ожидает подтверждения'
+                  : 'Вы ещё не зарегистрированы'}
+              </Text>
+            </>
+          )}
+
+          {alreadyRegistered ? (
+            <Button title="Отменить заявку" variant="danger" onPress={handleCancelPress} style={styles.registerButton} />
+          ) : (
+            <Button
+              title={submitting ? 'Отправка…' : 'Зарегистрироваться'}
+              onPress={register}
+              disabled={!canRegister || submitting}
+              style={styles.registerButton}
+            />
+          )}
+        </>
+      ) : null}
 
       {alreadyRegistered && (noTeamSideId || teamSideId) ? (
         <>
