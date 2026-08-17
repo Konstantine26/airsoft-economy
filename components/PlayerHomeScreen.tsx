@@ -6,18 +6,30 @@ import type { Game, Project, Team, TeamMember } from '../lib/database.types';
 import { Card } from './Card';
 import { Button } from './Button';
 import { GameCardScreen } from './GameCardScreen';
+import type { ActiveGame } from '../lib/activeGameStorage';
 import { colors, font, spacing } from '../lib/theme';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
   activeProjectId: string | null;
+  activeGame: ActiveGame | null;
+  onStartGame: (game: { id: string; project_id: string }) => void;
+  onEndGame: () => void;
   onGoToGames: () => void;
   onOpenGame: (game: { id: string; project_id: string }) => void;
 };
 
 type ConfirmedGame = Game & { project: Project | null };
 
-export function PlayerHomeScreen({ ownMembership, activeProjectId, onGoToGames, onOpenGame }: Props) {
+export function PlayerHomeScreen({
+  ownMembership,
+  activeProjectId,
+  activeGame,
+  onStartGame,
+  onEndGame,
+  onGoToGames,
+  onOpenGame,
+}: Props) {
   const { profile } = useAuth();
   const [nextGame, setNextGame] = useState<ConfirmedGame | null>(null);
   const [loading, setLoading] = useState(true);
@@ -55,6 +67,17 @@ export function PlayerHomeScreen({ ownMembership, activeProjectId, onGoToGames, 
     setRefreshing(false);
   }, [load]);
 
+  if (activeGame) {
+    return (
+      <GameCardScreen
+        gameId={activeGame.gameId}
+        ownMembership={ownMembership}
+        showRegistration={false}
+        onEndGame={onEndGame}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
@@ -88,6 +111,12 @@ export function PlayerHomeScreen({ ownMembership, activeProjectId, onGoToGames, 
           <Text style={styles.cardTitle}>{nextGame.name}</Text>
           <Text style={styles.meta}>{nextGame.project?.name ?? '—'}</Text>
           {nextGame.starts_at ? <Text style={styles.meta}>{new Date(nextGame.starts_at).toLocaleString()}</Text> : null}
+          <Button
+            title="Приступить к игре"
+            variant="success"
+            onPress={() => onStartGame({ id: nextGame.id, project_id: nextGame.project_id })}
+            style={styles.goButton}
+          />
           <Button
             title="Открыть игру"
             onPress={() => {

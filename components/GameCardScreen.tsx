@@ -40,11 +40,12 @@ type SideRosterRow = { id: string; full_name: string; avatar_url: string | null;
 type Props = {
   gameId: string;
   ownMembership: (TeamMember & { team: Team }) | null;
-  onClose: () => void;
+  onClose?: () => void;
   showRegistration?: boolean;
+  onEndGame?: () => void;
 };
 
-export function GameCardScreen({ gameId, ownMembership, onClose, showRegistration = true }: Props) {
+export function GameCardScreen({ gameId, ownMembership, onClose, showRegistration = true, onEndGame }: Props) {
   const { profile } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -190,6 +191,16 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
     setSideRoster([]);
   };
 
+  const handleEndGame = async () => {
+    const ok = await confirmAsync(
+      'Окончить игру?',
+      'Это вернёт на главный экран и снимет блокировку выбора проекта.',
+      'Окончить'
+    );
+    if (!ok) return;
+    onEndGame?.();
+  };
+
   const handleCancelPress = async () => {
     if (myStatus === 'confirmed') {
       const ok = await confirmAsync(
@@ -217,9 +228,13 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
   if (!game) {
     return (
       <View style={styles.container}>
-        <Pressable onPress={onClose}>
-          <Text style={styles.back}>‹ Назад</Text>
-        </Pressable>
+        {onEndGame ? (
+          <Button title="Окончить игру" variant="danger" onPress={handleEndGame} style={styles.endGameButton} />
+        ) : (
+          <Pressable onPress={onClose}>
+            <Text style={styles.back}>‹ Назад</Text>
+          </Pressable>
+        )}
         {error ? <Text style={styles.error}>{error}</Text> : <Text style={styles.label}>Игра не найдена</Text>}
       </View>
     );
@@ -227,9 +242,13 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Pressable onPress={onClose}>
-        <Text style={styles.back}>‹ Назад</Text>
-      </Pressable>
+      {onEndGame ? (
+        <Button title="Окончить игру" variant="danger" onPress={handleEndGame} style={styles.endGameButton} />
+      ) : (
+        <Pressable onPress={onClose}>
+          <Text style={styles.back}>‹ Назад</Text>
+        </Pressable>
+      )}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -388,6 +407,9 @@ const styles = StyleSheet.create({
     fontFamily: font.body,
     color: colors.textMuted,
     marginBottom: spacing.sm,
+  },
+  endGameButton: {
+    marginBottom: spacing.md,
   },
   title: {
     fontFamily: font.heading,

@@ -5,21 +5,24 @@ type Props = {
   label: string;
   selected?: boolean;
   onPress?: () => void;
+  disabled?: boolean;
   style?: StyleProp<ViewStyle>;
 };
 
-export function Chip({ label, selected, onPress, style }: Props) {
+export function Chip({ label, selected, onPress, disabled, style }: Props) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       android_ripple={{ color: colors.white14 }}
       accessibilityRole="button"
       accessibilityLabel={label}
-      accessibilityState={{ selected: !!selected }}
+      accessibilityState={{ selected: !!selected, disabled: !!disabled }}
       style={({ pressed }) => [
         styles.chip,
         selected ? styles.selected : styles.unselected,
-        pressed && styles.pressed,
+        disabled && styles.disabled,
+        pressed && !disabled && styles.pressed,
         style,
       ]}
     >
@@ -46,6 +49,9 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.7,
+  },
+  disabled: {
+    opacity: 0.4,
   },
   label: {
     fontFamily: font.bodySemiBold,

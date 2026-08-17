@@ -23,6 +23,7 @@ import { OnboardingCarousel } from './OnboardingCarousel';
 import { colors, font, spacing } from '../lib/theme';
 import { ROLE_META, type RoleKey } from '../lib/roles';
 import { hasSeenOnboarding, markOnboardingSeen } from '../lib/onboardingStorage';
+import { getActiveGame, setActiveGame as persistActiveGame, clearActiveGame as persistClearActiveGame, type ActiveGame } from '../lib/activeGameStorage';
 import type { Project } from '../lib/database.types';
 
 type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
@@ -42,10 +43,45 @@ export function Dashboard() {
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
   const [helpVisible, setHelpVisible] = useState(false);
   const [onboardingRole, setOnboardingRole] = useState<RoleKey | null>(null);
+  const [activeGame, setActiveGame] = useState<ActiveGame | null>(null);
 
   const openGame = useCallback((game: { id: string; project_id: string }) => {
     setActiveProjectId(game.project_id);
   }, []);
+
+  useEffect(() => {
+    if (!profile) {
+      setActiveGame(null);
+      return;
+    }
+    let cancelled = false;
+    getActiveGame(profile.id).then((game) => {
+      if (!cancelled) setActiveGame(game);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
+
+  useEffect(() => {
+    if (activeGame) setActiveProjectId(activeGame.projectId);
+  }, [activeGame]);
+
+  const startGame = useCallback(
+    (game: { id: string; project_id: string }) => {
+      if (!profile) return;
+      const next: ActiveGame = { gameId: game.id, projectId: game.project_id };
+      setActiveGame(next);
+      persistActiveGame(profile.id, next);
+    },
+    [profile]
+  );
+
+  const endGame = useCallback(() => {
+    if (!profile) return;
+    setActiveGame(null);
+    persistClearActiveGame(profile.id);
+  }, [profile]);
 
   const changeAvatar = useCallback(async () => {
     if (!session) return;
@@ -220,6 +256,7 @@ export function Dashboard() {
                   label={project.name}
                   selected={activeProjectId === project.id}
                   onPress={() => setActiveProjectId(project.id)}
+                  disabled={!!activeGame && project.id !== activeGame.projectId}
                 />
               ))}
             </View>
@@ -240,6 +277,9 @@ export function Dashboard() {
               <PlayerHomeScreen
                 ownMembership={capabilities.ownMembership}
                 activeProjectId={activeProjectId}
+                activeGame={activeGame}
+                onStartGame={startGame}
+                onEndGame={endGame}
                 onGoToGames={() => setPlayerTab('games')}
                 onOpenGame={openGame}
               />
