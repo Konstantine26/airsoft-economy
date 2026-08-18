@@ -7,6 +7,7 @@ import { Card } from './Card';
 import { Button } from './Button';
 import { GameManageScreen } from './GameManageScreen';
 import { CreateGameWizard } from './CreateGameWizard';
+import { ClosedProjectAccessSheet } from './ClosedProjectAccessSheet';
 import { colors, font, spacing } from '../lib/theme';
 
 type GameWithRelations = Game & { project: Project | null; polygon: Polygon | null };
@@ -41,6 +42,7 @@ export function OrganizerScreen({ view, activeProjectId }: Props) {
 
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
   const [creatingGame, setCreatingGame] = useState(false);
+  const [accessSheetOpen, setAccessSheetOpen] = useState(false);
 
   const fetchGames = useCallback(async () => {
     if (!profile) return;
@@ -175,6 +177,7 @@ export function OrganizerScreen({ view, activeProjectId }: Props) {
   }
 
   const now = Date.now();
+  const activeProject = organizerProjects.find((p) => p.id === activeProjectId) ?? null;
   const projectGames = allGames.filter((g) => g.project_id === activeProjectId);
   const upcomingGames = projectGames.filter((g) => !g.ends_at || new Date(g.ends_at).getTime() > now).slice(0, 3);
   const nearestGame = upcomingGames[0] ?? projectGames[0] ?? null;
@@ -193,6 +196,19 @@ export function OrganizerScreen({ view, activeProjectId }: Props) {
 
       {view === 'overview' ? (
         <>
+          {activeProject?.is_closed ? (
+            <Card style={styles.closedNotice}>
+              <Text style={styles.cardTitle}>Проект закрытый</Text>
+              <Text style={styles.label}>Виден только организаторам, админу и добавленным командам/игрокам</Text>
+              <Button
+                title="Управление доступом"
+                variant="secondary"
+                onPress={() => setAccessSheetOpen(true)}
+                style={styles.closedNoticeButton}
+              />
+            </Card>
+          ) : null}
+
           <View style={styles.statsRow}>
             <Card style={styles.statCard}>
               <Text style={styles.statValue}>{totalPending}</Text>
@@ -252,6 +268,14 @@ export function OrganizerScreen({ view, activeProjectId }: Props) {
           )}
         </>
       )}
+
+      {activeProject ? (
+        <ClosedProjectAccessSheet
+          visible={accessSheetOpen}
+          projectId={activeProject.id}
+          onClose={() => setAccessSheetOpen(false)}
+        />
+      ) : null}
     </ScrollView>
   );
 }
@@ -296,6 +320,12 @@ const styles = StyleSheet.create({
     fontSize: 19,
     color: colors.text,
     marginBottom: spacing.sm + 2,
+  },
+  closedNotice: {
+    marginBottom: spacing.md,
+  },
+  closedNoticeButton: {
+    marginTop: spacing.sm,
   },
   statsRow: {
     flexDirection: 'row',

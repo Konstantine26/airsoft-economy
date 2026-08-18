@@ -8,6 +8,7 @@ import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { GameManageScreen } from './GameManageScreen';
+import { ClosedProjectAccessSheet } from './ClosedProjectAccessSheet';
 import { colors, font, radii, spacing } from '../lib/theme';
 
 type GameWithPolygon = Game & { polygon: Polygon | null };
@@ -33,11 +34,14 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
   const [newProjectDescription, setNewProjectDescription] = useState('');
   const [newProjectEconomyEnabled, setNewProjectEconomyEnabled] = useState(false);
   const [newProjectGameType, setNewProjectGameType] = useState<GameType | null>(null);
+  const [newProjectIsClosed, setNewProjectIsClosed] = useState(false);
   const [editingProject, setEditingProject] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editEconomyEnabled, setEditEconomyEnabled] = useState(false);
   const [editDefaultGameType, setEditDefaultGameType] = useState<GameType | null>(null);
+  const [editIsClosed, setEditIsClosed] = useState(false);
+  const [accessSheetOpen, setAccessSheetOpen] = useState(false);
 
 
   const loadProjects = useCallback(async () => {
@@ -96,23 +100,34 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     if (!newProjectName.trim()) return;
     setError(null);
     const { data: userData } = await supabase.auth.getUser();
-    const { error } = await supabase.from('projects').insert({
-      name: newProjectName.trim(),
-      description: newProjectDescription.trim() || null,
-      economy_enabled: newProjectEconomyEnabled,
-      default_game_type: newProjectGameType,
-      created_by: userData.user?.id,
-    });
-    if (error) {
-      setError(error.message);
+    const { data: created, error } = await supabase
+      .from('projects')
+      .insert({
+        name: newProjectName.trim(),
+        description: newProjectDescription.trim() || null,
+        economy_enabled: newProjectEconomyEnabled,
+        default_game_type: newProjectGameType,
+        is_closed: newProjectIsClosed,
+        created_by: userData.user?.id,
+      })
+      .select()
+      .single();
+    if (error || !created) {
+      setError(error?.message ?? 'Не удалось создать проект');
       return;
     }
+    const wasClosed = newProjectIsClosed;
     setNewProjectName('');
     setNewProjectDescription('');
     setNewProjectEconomyEnabled(false);
     setNewProjectGameType(null);
-    loadProjects();
+    setNewProjectIsClosed(false);
+    await loadProjects();
     onProjectsChanged();
+    if (wasClosed) {
+      openProject(created);
+      setAccessSheetOpen(true);
+    }
   };
 
   const startEditProject = () => {
@@ -121,7 +136,16 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     setEditDescription(selectedProject.description ?? '');
     setEditEconomyEnabled(selectedProject.economy_enabled);
     setEditDefaultGameType(selectedProject.default_game_type);
+    setEditIsClosed(selectedProject.is_closed);
     setEditingProject(true);
+  };
+
+  const toggleEditIsClosed = () => {
+    setEditIsClosed((prev) => {
+      const next = !prev;
+      if (next) setAccessSheetOpen(true);
+      return next;
+    });
   };
 
   const saveEditProject = async () => {
@@ -132,6 +156,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
       description: editDescription.trim() || null,
       economy_enabled: editEconomyEnabled,
       default_game_type: editDefaultGameType,
+      is_closed: editIsClosed,
     };
     const { error } = await supabase.from('projects').update(updates).eq('id', selectedProject.id);
     if (error) {
@@ -284,6 +309,21 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
               <View style={[styles.checkbox, editEconomyEnabled && styles.checkboxChecked]} />
               <Text style={styles.checkboxLabel}>Ведение экономики</Text>
             </Pressable>
+            <Pressable
+              style={styles.checkboxRow}
+              onPress={toggleEditIsClosed}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: editIsClosed }}
+              accessibilityLabel="Закрытый проект"
+            >
+              <View style={[styles.checkbox, editIsClosed && styles.checkboxChecked]} />
+              <Text style={styles.checkboxLabel}>Закрытый проект</Text>
+            </Pressable>
+            {editIsClosed ? (
+              <Pressable onPress={() => setAccessSheetOpen(true)}>
+                <Text style={styles.editLink}>Список команд и игроков с доступом</Text>
+              </Pressable>
+            ) : null}
             <Text style={styles.label}>Тип игры по умолчанию</Text>
             <Text style={styles.label}>Автоматически проставляется в каждую новую игру проекта</Text>
             <View style={styles.chips}>
@@ -315,6 +355,9 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
               Тип игры по умолчанию:{' '}
               {selectedProject.default_game_type ? GAME_TYPE_LABEL[selectedProject.default_game_type] : 'не задан'}
             </Text>
+            <Text style={styles.label}>
+              Проект: {selectedProject.is_closed ? 'закрытый' : 'открытый'}
+            </Text>
             <View style={styles.row}>
               <Pressable onPress={startEditProject}>
                 <Text style={styles.editLink}>Редактировать</Text>
@@ -322,6 +365,11 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
               <Pressable onPress={() => deleteProject(selectedProject)}>
                 <Text style={styles.deleteLink}>Удалить проект</Text>
               </Pressable>
+              {selectedProject.is_closed ? (
+                <Pressable onPress={() => setAccessSheetOpen(true)}>
+                  <Text style={styles.editLink}>Управление доступом</Text>
+                </Pressable>
+              ) : null}
             </View>
           </>
         )}
@@ -371,6 +419,11 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
           ))}
         </View>
 
+        <ClosedProjectAccessSheet
+          visible={accessSheetOpen}
+          projectId={selectedProject.id}
+          onClose={() => setAccessSheetOpen(false)}
+        />
       </ScrollView>
     );
   }
@@ -383,7 +436,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
         {projects.map((project) => (
           <Pressable key={project.id} onPress={() => openProject(project)}>
             <Card>
-              <Text style={styles.cardTitle}>{project.name}</Text>
+              <Text style={styles.cardTitle}>{project.name}{project.is_closed ? ' 🔒' : ''}</Text>
               {project.description ? <Text style={styles.label}>{project.description}</Text> : null}
               <Text style={styles.label}>
                 Экономика: {project.economy_enabled ? 'включена' : 'выключена'}
@@ -417,6 +470,21 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
         <View style={[styles.checkbox, newProjectEconomyEnabled && styles.checkboxChecked]} />
         <Text style={styles.checkboxLabel}>Ведение экономики</Text>
       </Pressable>
+      <Pressable
+        style={styles.checkboxRow}
+        onPress={() => setNewProjectIsClosed((v) => !v)}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: newProjectIsClosed }}
+        accessibilityLabel="Закрытый проект"
+      >
+        <View style={[styles.checkbox, newProjectIsClosed && styles.checkboxChecked]} />
+        <Text style={styles.checkboxLabel}>Закрытый проект</Text>
+      </Pressable>
+      {newProjectIsClosed ? (
+        <Text style={styles.label}>
+          После создания откроется окно выбора команд и игроков с доступом
+        </Text>
+      ) : null}
       <Text style={styles.label}>Тип игры по умолчанию</Text>
       <Text style={styles.label}>Автоматически проставляется в каждую новую игру проекта</Text>
       <View style={styles.chips}>

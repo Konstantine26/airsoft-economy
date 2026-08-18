@@ -55,11 +55,26 @@ export type Project = {
   description: string | null;
   economy_enabled: boolean;
   default_game_type: GameType | null;
+  is_closed: boolean;
   created_by: string | null;
   created_at: string;
 };
 
 export type ProjectOrganizer = {
+  id: string;
+  project_id: string;
+  profile_id: string;
+  created_at: string;
+};
+
+export type ProjectAllowedTeam = {
+  id: string;
+  project_id: string;
+  team_id: string;
+  created_at: string;
+};
+
+export type ProjectAllowedPlayer = {
   id: string;
   project_id: string;
   profile_id: string;
@@ -329,6 +344,44 @@ export type Database = {
           },
           {
             foreignKeyName: 'game_organizers_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      project_allowed_teams: {
+        Row: ProjectAllowedTeam;
+        Insert: Partial<ProjectAllowedTeam> & { project_id: string; team_id: string };
+        Update: Partial<ProjectAllowedTeam>;
+        Relationships: [
+          {
+            foreignKeyName: 'project_allowed_teams_project_id_fkey';
+            columns: ['project_id'];
+            referencedRelation: 'projects';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'project_allowed_teams_team_id_fkey';
+            columns: ['team_id'];
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      project_allowed_players: {
+        Row: ProjectAllowedPlayer;
+        Insert: Partial<ProjectAllowedPlayer> & { project_id: string; profile_id: string };
+        Update: Partial<ProjectAllowedPlayer>;
+        Relationships: [
+          {
+            foreignKeyName: 'project_allowed_players_project_id_fkey';
+            columns: ['project_id'];
+            referencedRelation: 'projects';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'project_allowed_players_profile_id_fkey';
             columns: ['profile_id'];
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
