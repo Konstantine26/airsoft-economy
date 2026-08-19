@@ -3,8 +3,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Game, GameSide, Polygon, Profile, Team } from '../lib/database.types';
+import type { Game, GameSide, Polygon, Profile, Team, TeamJoinRequest } from '../lib/database.types';
 import { Avatar } from './Avatar';
+import { Button } from './Button';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { TextField } from './TextField';
@@ -20,17 +21,20 @@ type Props = {
   teams: Team[];
   projectId: string | null;
   activeProjectId: string | null;
+  onTeamDisbanded: () => void;
 };
 
 const TEAM_AVATAR_BUCKET = 'team-avatars';
 
-export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props) {
+export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamDisbanded }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
-  const [activeTab, setActiveTab] = useState<'team' | 'games' | 'budget'>('team');
+  const [activeTab, setActiveTab] = useState<'team' | 'requests' | 'games' | 'budget'>('team');
   const [addQuery, setAddQuery] = useState('');
   const [teamBalance, setTeamBalance] = useState(0);
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [availableProfiles, setAvailableProfiles] = useState<Profile[]>([]);
+  const [joinRequests, setJoinRequests] = useState<(TeamJoinRequest & { profile: Profile | null })[]>([]);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
   const [games, setGames] = useState<GameWithProject[]>([]);
   const [activeGame, setActiveGame] = useState<GameWithProject | null>(null);
   const [sides, setSides] = useState<GameSide[]>([]);
@@ -40,6 +44,11 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [disbanding, setDisbanding] = useState(false);
+
+  useEffect(() => {
+    setActiveTeam((prev) => (teams.some((t) => t.id === prev.id) ? prev : (teams[0] ?? prev)));
+  }, [teams]);
 
   const changeTeamAvatar = useCallback(async () => {
     setError(null);
@@ -102,6 +111,16 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props
     setAvailableProfiles((allProfiles ?? []).filter((p) => !rosteredIds.has(p.id)));
   }, []);
 
+  const loadJoinRequests = useCallback(async (team: Team) => {
+    const { data } = await supabase
+      .from('team_join_requests')
+      .select('*, profile:profiles(*)')
+      .eq('team_id', team.id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+    setJoinRequests((data as any[]) ?? []);
+  }, []);
+
   const loadGames = useCallback(async () => {
     const { data } = await supabase
       .from('games')
@@ -132,14 +151,62 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([loadRoster(activeTeam), loadGames(), loadBalance()]).finally(() => setLoading(false));
-  }, [activeTeam, loadRoster, loadGames, loadBalance]);
+    Promise.all([loadRoster(activeTeam), loadJoinRequests(activeTeam), loadGames(), loadBalance()]).finally(() =>
+      setLoading(false)
+    );
+  }, [activeTeam, loadRoster, loadJoinRequests, loadGames, loadBalance]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([loadRoster(activeTeam), loadGames(), loadBalance()]);
+    await Promise.all([loadRoster(activeTeam), loadJoinRequests(activeTeam), loadGames(), loadBalance()]);
     setRefreshing(false);
-  }, [activeTeam, loadRoster, loadGames, loadBalance]);
+  }, [activeTeam, loadRoster, loadJoinRequests, loadGames, loadBalance]);
+
+  const acceptRequest = async (request: TeamJoinRequest) => {
+    setError(null);
+    setReviewingRequestId(request.id);
+    const { error: rpcError } = await supabase.rpc('accept_team_join_request', { p_request_id: request.id });
+    setReviewingRequestId(null);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    loadJoinRequests(activeTeam);
+    loadRoster(activeTeam);
+  };
+
+  const rejectRequest = async (request: TeamJoinRequest) => {
+    setError(null);
+    setReviewingRequestId(request.id);
+    const { error: updateError } = await supabase
+      .from('team_join_requests')
+      .update({ status: 'rejected' })
+      .eq('id', request.id);
+    setReviewingRequestId(null);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    loadJoinRequests(activeTeam);
+  };
+
+  const disbandTeam = async () => {
+    const ok = await confirmAsync(
+      'Расформировать команду?',
+      `Команда «${activeTeam.name}» будет удалена: все участники будут исключены из команды, бюджет команды будет потерян. Действие необратимо.`,
+      'Расформировать'
+    );
+    if (!ok) return;
+    setError(null);
+    setDisbanding(true);
+    const { error: rpcError } = await supabase.rpc('disband_team', { p_team_id: activeTeam.id });
+    setDisbanding(false);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    onTeamDisbanded();
+  };
 
   const openGame = useCallback(
     async (game: GameWithProject) => {
@@ -389,6 +456,11 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props
 
       <View style={styles.subNav}>
         <Chip label="Моя команда" selected={activeTab === 'team'} onPress={() => setActiveTab('team')} />
+        <Chip
+          label={joinRequests.length > 0 ? `Заявки (${joinRequests.length})` : 'Заявки'}
+          selected={activeTab === 'requests'}
+          onPress={() => setActiveTab('requests')}
+        />
         <Chip label="Игры" selected={activeTab === 'games'} onPress={() => setActiveTab('games')} />
         <Chip label="Бюджет" selected={activeTab === 'budget'} onPress={() => setActiveTab('budget')} />
       </View>
@@ -465,7 +537,54 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId }: Props
               ))}
             </View>
           )}
+
+          <Text style={styles.sectionTitle}>Опасная зона</Text>
+          <Button
+            title="Расформировать команду"
+            variant="danger"
+            onPress={disbandTeam}
+            loading={disbanding}
+            style={styles.disbandButton}
+          />
         </>
+      ) : null}
+
+      {activeTab === 'requests' ? (
+        joinRequests.length === 0 ? (
+          <Text style={styles.label}>Заявок на вступление нет</Text>
+        ) : (
+          <View style={styles.rosterList}>
+            {joinRequests.map((request) => (
+              <Card key={request.id}>
+                <View style={styles.rosterRow}>
+                  <View style={styles.rosterIdentity}>
+                    <Avatar uri={request.profile?.avatar_url ?? null} name={request.profile?.full_name ?? ''} size={22} />
+                    <Text style={styles.rosterName}>
+                      {request.profile?.full_name || '(без имени)'}
+                      {request.profile ? ` · №${request.profile.participant_number}` : ''}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.requestActions}>
+                  <Button
+                    title="Принять"
+                    variant="success"
+                    onPress={() => acceptRequest(request)}
+                    loading={reviewingRequestId === request.id}
+                    style={styles.requestButton}
+                  />
+                  <Button
+                    title="Отклонить"
+                    variant="danger"
+                    onPress={() => rejectRequest(request)}
+                    loading={reviewingRequestId === request.id}
+                    style={styles.requestButton}
+                  />
+                </View>
+              </Card>
+            ))}
+          </View>
+        )
       ) : null}
 
       {activeTab === 'games' ? (
@@ -620,6 +739,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     padding: 12,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+  },
+  requestButton: {
+    flex: 1,
+    paddingVertical: 9,
+  },
+  disbandButton: {
+    marginBottom: spacing.lg,
   },
   addRow: {
     flexDirection: 'row',

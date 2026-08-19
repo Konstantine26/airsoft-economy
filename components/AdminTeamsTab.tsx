@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Profile, Team } from '../lib/database.types';
+import type { Profile, Team, TeamCreationRequest } from '../lib/database.types';
 import { Avatar } from './Avatar';
+import { Button } from './Button';
 import { Card } from './Card';
 import { Chip } from './Chip';
-import { Button } from './Button';
 import { TextField } from './TextField';
 import { colors, font, spacing } from '../lib/theme';
 import { formatMoney } from '../lib/format';
@@ -18,6 +18,8 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
   const [teams, setTeams] = useState<Team[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [balances, setBalances] = useState<Map<string, number>>(new Map());
+  const [creationRequests, setCreationRequests] = useState<(TeamCreationRequest & { profile: Profile | null })[]>([]);
+  const [reviewingRequestId, setReviewingRequestId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -26,17 +28,23 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
   const [editingName, setEditingName] = useState('');
 
   const load = useCallback(async () => {
-    const [teamsRes, profilesRes, balancesRes] = await Promise.all([
+    const [teamsRes, profilesRes, balancesRes, requestsRes] = await Promise.all([
       supabase.from('teams').select('*').order('name', { ascending: true }),
       supabase.from('profiles').select('*').order('full_name', { ascending: true }),
       activeProjectId
         ? supabase.from('project_team_balances').select('*').eq('project_id', activeProjectId)
         : Promise.resolve({ data: [], error: null }),
+      supabase
+        .from('team_creation_requests')
+        .select('*, profile:profiles(*)')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: true }),
     ]);
     if (teamsRes.error) setError(teamsRes.error.message);
     setTeams(teamsRes.data ?? []);
     setProfiles(profilesRes.data ?? []);
     setBalances(new Map((balancesRes.data ?? []).map((row) => [row.team_id, row.balance])));
+    setCreationRequests((requestsRes.data as any[]) ?? []);
   }, [activeProjectId]);
 
   useEffect(() => {
@@ -89,6 +97,33 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
     setTeams((prev) => prev.filter((t) => t.id !== team.id));
   };
 
+  const acceptCreationRequest = async (request: TeamCreationRequest) => {
+    setError(null);
+    setReviewingRequestId(request.id);
+    const { error: rpcError } = await supabase.rpc('accept_team_creation_request', { p_request_id: request.id });
+    setReviewingRequestId(null);
+    if (rpcError) {
+      setError(rpcError.message);
+      return;
+    }
+    load();
+  };
+
+  const rejectCreationRequest = async (request: TeamCreationRequest) => {
+    setError(null);
+    setReviewingRequestId(request.id);
+    const { error: updateError } = await supabase
+      .from('team_creation_requests')
+      .update({ status: 'rejected' })
+      .eq('id', request.id);
+    setReviewingRequestId(null);
+    if (updateError) {
+      setError(updateError.message);
+      return;
+    }
+    load();
+  };
+
   const setCommander = async (teamId: string, profileId: string | null) => {
     setError(null);
     const { error } = await supabase.from('teams').update({ commander_id: profileId }).eq('id', teamId);
@@ -119,6 +154,44 @@ export function AdminTeamsTab({ activeProjectId }: Props) {
           Нет проекта с включённой экономикой — пополнение недоступно. Включите «Ведение экономики» во
           вкладке «Проекты и игры».
         </Text>
+      ) : null}
+
+      {creationRequests.length > 0 ? (
+        <>
+          <Text style={styles.sectionTitle}>Заявки на создание команды ({creationRequests.length})</Text>
+          <View style={styles.list}>
+            {creationRequests.map((request) => (
+              <Card key={request.id}>
+                <View style={styles.row}>
+                  <Avatar uri={request.profile?.avatar_url ?? null} name={request.profile?.full_name ?? ''} size={26} />
+                  <View style={styles.flexInput}>
+                    <Text style={styles.cardTitle}>{request.team_name}</Text>
+                    <Text style={styles.label}>
+                      Заявитель: {request.profile?.full_name || '(без имени)'}
+                      {request.profile ? ` · №${request.profile.participant_number}` : ''}
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.requestActions}>
+                  <Button
+                    title="Принять"
+                    variant="success"
+                    onPress={() => acceptCreationRequest(request)}
+                    loading={reviewingRequestId === request.id}
+                    style={styles.requestButton}
+                  />
+                  <Button
+                    title="Отклонить"
+                    variant="danger"
+                    onPress={() => rejectCreationRequest(request)}
+                    loading={reviewingRequestId === request.id}
+                    style={styles.requestButton}
+                  />
+                </View>
+              </Card>
+            ))}
+          </View>
+        </>
       ) : null}
 
       <View style={styles.list}>
@@ -204,6 +277,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text,
     flex: 1,
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: spacing.sm,
+  },
+  requestButton: {
+    flex: 1,
+    paddingVertical: 9,
   },
   sectionTitle: {
     fontFamily: font.heading,

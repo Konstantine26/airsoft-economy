@@ -1,4 +1,3 @@
-import * as ImagePicker from 'expo-image-picker';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -19,6 +18,7 @@ import { TeamsScreen } from './TeamsScreen';
 import { TraderScreen } from './TraderScreen';
 import { WalletScreen } from './WalletScreen';
 import { HelpScreen } from './HelpScreen';
+import { ProfileScreen } from './ProfileScreen';
 import { OnboardingCarousel } from './OnboardingCarousel';
 import { colors, font, spacing } from '../lib/theme';
 import { ROLE_META, type RoleKey } from '../lib/roles';
@@ -29,19 +29,16 @@ import type { Project } from '../lib/database.types';
 type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
 type OrganizerTab = 'overview' | 'games' | 'economy';
 
-const AVATAR_BUCKET = 'avatars';
-
 export function Dashboard() {
-  const { profile, session, signOut, refreshProfile } = useAuth();
+  const { profile, signOut } = useAuth();
   const capabilities = useCapabilities();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const [avatarError, setAvatarError] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
   const [playerTab, setPlayerTab] = useState<PlayerTab>('home');
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
   const [helpVisible, setHelpVisible] = useState(false);
+  const [profileVisible, setProfileVisible] = useState(false);
   const [onboardingRole, setOnboardingRole] = useState<RoleKey | null>(null);
   const [activeGame, setActiveGame] = useState<ActiveGame | null>(null);
 
@@ -82,49 +79,6 @@ export function Dashboard() {
     setActiveGame(null);
     persistClearActiveGame(profile.id);
   }, [profile]);
-
-  const changeAvatar = useCallback(async () => {
-    if (!session) return;
-    setAvatarError(null);
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) {
-      setAvatarError('Нет доступа к галерее');
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (result.canceled) return;
-
-    setUploadingAvatar(true);
-    try {
-      const asset = result.assets[0];
-      const arrayBuffer = await fetch(asset.uri).then((res) => res.arrayBuffer());
-      const path = `${session.user.id}/avatar.jpg`;
-      const { error: uploadError } = await supabase.storage
-        .from(AVATAR_BUCKET)
-        .upload(path, arrayBuffer, { contentType: asset.mimeType ?? 'image/jpeg', upsert: true });
-      if (uploadError) throw uploadError;
-
-      const publicUrl = supabase.storage.from(AVATAR_BUCKET).getPublicUrl(path).data.publicUrl;
-      const avatarUrl = `${publicUrl}?v=${Date.now()}`;
-
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: avatarUrl })
-        .eq('id', session.user.id);
-      if (updateError) throw updateError;
-
-      await refreshProfile();
-    } catch (e) {
-      setAvatarError(e instanceof Error ? e.message : 'Не удалось загрузить фото');
-    } finally {
-      setUploadingAvatar(false);
-    }
-  }, [session, refreshProfile]);
 
   const loadProjects = useCallback(async () => {
     const { data } = await supabase.from('projects').select('*').order('name', { ascending: true });
@@ -218,30 +172,17 @@ export function Dashboard() {
             <MaterialCommunityIcons name="bell-outline" size={18} color={colors.textDim} />
           </View>
           <Pressable
-            onPress={changeAvatar}
-            disabled={uploadingAvatar}
+            onPress={() => setProfileVisible(true)}
             accessibilityRole="button"
-            accessibilityLabel="Сменить фото профиля"
+            accessibilityLabel="Открыть профиль"
           >
-            {uploadingAvatar ? (
-              <View style={[styles.avatarLoading, { width: 30, height: 30, borderRadius: 15 }]}>
-                <ActivityIndicator size="small" color={colors.accent} />
-              </View>
-            ) : (
-              <Avatar uri={profile.avatar_url} name={profile.full_name} size={30} />
-            )}
+            <Avatar uri={profile.avatar_url} name={profile.full_name} size={30} />
           </Pressable>
           <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
             <Text style={styles.signOut}>Выйти</Text>
           </Pressable>
         </View>
       </View>
-
-      {avatarError ? (
-        <View style={styles.avatarErrorBanner}>
-          <Text style={styles.avatarErrorText}>{avatarError}</Text>
-        </View>
-      ) : null}
 
       {roleItems.length > 1 ? <TabBar items={roleItems} activeKey={activeRole} onChange={setActiveRole} /> : null}
 
@@ -317,6 +258,7 @@ export function Dashboard() {
             teams={capabilities.commandedTeams}
             projectId={economyProjectId}
             activeProjectId={activeProjectId}
+            onTeamDisbanded={capabilities.refresh}
           />
         ) : null}
         {activeRole === 'sideCommander' ? <SideCommanderScreen sides={projectSides} /> : null}
@@ -329,6 +271,7 @@ export function Dashboard() {
       </View>
 
       <HelpScreen visible={helpVisible} onClose={() => setHelpVisible(false)} onReplayOnboarding={replayOnboarding} />
+      <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <OnboardingCarousel role={onboardingRole} onClose={closeOnboarding} />
     </View>
   );
@@ -389,24 +332,7 @@ const styles = StyleSheet.create({
   notificationSlot: {
     padding: 2,
   },
-  avatarLoading: {
-    backgroundColor: colors.card,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   signOut: {
-    fontFamily: font.body,
-    fontSize: 12.5,
-    color: colors.danger,
-  },
-  avatarErrorBanner: {
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    backgroundColor: colors.overlayStrong,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  avatarErrorText: {
     fontFamily: font.body,
     fontSize: 12.5,
     color: colors.danger,

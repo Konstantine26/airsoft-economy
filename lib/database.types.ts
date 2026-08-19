@@ -39,6 +39,27 @@ export type TeamMember = {
   created_at: string;
 };
 
+export type TeamJoinRequestStatus = 'pending' | 'accepted' | 'rejected';
+
+export type TeamJoinRequest = {
+  id: string;
+  team_id: string;
+  profile_id: string;
+  status: TeamJoinRequestStatus;
+  created_at: string;
+};
+
+export type TeamCreationRequestStatus = 'pending' | 'accepted' | 'rejected';
+
+export type TeamCreationRequest = {
+  id: string;
+  profile_id: string;
+  team_name: string;
+  status: TeamCreationRequestStatus;
+  resulting_team_id: string | null;
+  created_at: string;
+};
+
 export type Transaction = {
   id: string;
   project_id: string | null;
@@ -276,6 +297,44 @@ export type Database = {
             foreignKeyName: 'team_members_profile_id_fkey';
             columns: ['profile_id'];
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      team_join_requests: {
+        Row: TeamJoinRequest;
+        Insert: Partial<TeamJoinRequest> & { team_id: string; profile_id: string };
+        Update: Partial<TeamJoinRequest>;
+        Relationships: [
+          {
+            foreignKeyName: 'team_join_requests_team_id_fkey';
+            columns: ['team_id'];
+            referencedRelation: 'teams';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'team_join_requests_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      team_creation_requests: {
+        Row: TeamCreationRequest;
+        Insert: Partial<TeamCreationRequest> & { profile_id: string; team_name: string };
+        Update: Partial<TeamCreationRequest>;
+        Relationships: [
+          {
+            foreignKeyName: 'team_creation_requests_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'team_creation_requests_resulting_team_id_fkey';
+            columns: ['resulting_team_id'];
+            referencedRelation: 'teams';
             referencedColumns: ['id'];
           },
         ];
@@ -833,6 +892,24 @@ export type Database = {
           p_note?: string | null;
         };
         Returns: PersonalTransaction;
+      };
+      accept_team_join_request: {
+        Args: {
+          p_request_id: string;
+        };
+        Returns: TeamJoinRequest;
+      };
+      accept_team_creation_request: {
+        Args: {
+          p_request_id: string;
+        };
+        Returns: TeamCreationRequest;
+      };
+      disband_team: {
+        Args: {
+          p_team_id: string;
+        };
+        Returns: void;
       };
     };
   };

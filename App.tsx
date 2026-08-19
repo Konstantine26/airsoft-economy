@@ -6,6 +6,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { AuthScreen } from './components/AuthScreen';
 import { Dashboard } from './components/Dashboard';
 import { ForceChangePasswordScreen } from './components/ForceChangePasswordScreen';
+import { ProfileScreen } from './components/ProfileScreen';
 import { colors, fontsToLoad } from './lib/theme';
 
 function Root() {
@@ -23,7 +24,15 @@ function Root() {
     return <AuthScreen />;
   }
 
-  return profile?.must_change_password ? <ForceChangePasswordScreen /> : <Dashboard />;
+  if (profile?.must_change_password) {
+    return <ForceChangePasswordScreen />;
+  }
+
+  if (!profile?.full_name?.trim()) {
+    return <ProfileScreen />;
+  }
+
+  return <Dashboard />;
 }
 
 export default function App() {

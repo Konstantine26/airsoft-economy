@@ -26,13 +26,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data }) => {
-      setSession(data.session);
-      if (data.session) {
-        await loadProfile(data.session.user.id);
-      }
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(async ({ data }) => {
+        setSession(data.session);
+        if (data.session) {
+          await loadProfile(data.session.user.id);
+        }
+      })
+      .catch(() => {
+        // Stale/incompatible session (e.g. leftover token from a
+        // different Supabase project) -- fall through to the login
+        // screen instead of hanging on the loading spinner forever.
+        setSession(null);
+      })
+      .finally(() => setLoading(false));
 
     const { data: subscription } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       setSession(newSession);
