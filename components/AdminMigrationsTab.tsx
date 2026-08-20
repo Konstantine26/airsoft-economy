@@ -26,9 +26,12 @@ export function AdminMigrationsTab() {
   const load = useCallback(async () => {
     const { data, error: loadError } = await supabase.from('_migrations_applied').select('*');
     if (loadError) {
-      // undefined_table -- this server doesn't have the ledger yet
-      // (024_migrations_status.sql not applied here).
-      if (loadError.code === '42P01' || /does not exist/i.test(loadError.message)) {
+      // Postgres says 42P01 (undefined_table); PostgREST's own schema
+      // cache miss says PGRST205 ("Could not find the table ... in the
+      // schema cache") -- confirmed live against the cloud test project.
+      // This server doesn't have the ledger yet (024_migrations_status.sql
+      // not applied here).
+      if (loadError.code === '42P01' || loadError.code === 'PGRST205' || /does not exist|schema cache/i.test(loadError.message)) {
         setTableMissing(true);
         setApplied(new Map());
       } else {

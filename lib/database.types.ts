@@ -285,6 +285,20 @@ export type MigrationApplied = {
   applied_at: string;
 };
 
+export type NotificationKind = 'task_assigned' | 'task_reward' | 'money_received' | 'request_confirmed' | 'request_rejected';
+
+export type Notification = {
+  id: string;
+  profile_id: string;
+  kind: NotificationKind;
+  title: string;
+  body: string | null;
+  game_id: string | null;
+  task_id: string | null;
+  created_at: string;
+  read_at: string | null;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -862,6 +876,31 @@ export type Database = {
         Insert: Partial<MigrationApplied> & { filename: string };
         Update: Partial<MigrationApplied>;
         Relationships: [];
+      };
+      notifications: {
+        Row: Notification;
+        Insert: Partial<Notification> & { profile_id: string; kind: NotificationKind; title: string };
+        Update: Partial<Notification>;
+        Relationships: [
+          {
+            foreignKeyName: 'notifications_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_game_id_fkey';
+            columns: ['game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'notifications_task_id_fkey';
+            columns: ['task_id'];
+            referencedRelation: 'tasks';
+            referencedColumns: ['id'];
+          },
+        ];
       };
     };
     Views: Record<string, never>;

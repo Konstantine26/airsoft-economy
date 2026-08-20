@@ -18,6 +18,7 @@ import { TeamsScreen } from './TeamsScreen';
 import { TraderScreen } from './TraderScreen';
 import { WalletScreen } from './WalletScreen';
 import { HelpScreen } from './HelpScreen';
+import { NotificationsScreen } from './NotificationsScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { OnboardingCarousel } from './OnboardingCarousel';
 import { colors, font, spacing } from '../lib/theme';
@@ -39,6 +40,8 @@ export function Dashboard() {
   const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
   const [helpVisible, setHelpVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
+  const [notificationsVisible, setNotificationsVisible] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const [onboardingRole, setOnboardingRole] = useState<RoleKey | null>(null);
   const [activeGame, setActiveGame] = useState<ActiveGame | null>(null);
 
@@ -91,6 +94,24 @@ export function Dashboard() {
     setProjects(rows);
     setActiveProjectId((prev) => (prev && rows.some((p) => p.id === prev) ? prev : (rows[0]?.id ?? null)));
   }, []);
+
+  const loadUnreadCount = useCallback(async () => {
+    if (!profile) return;
+    const { count } = await supabase
+      .from('notifications')
+      .select('id', { count: 'exact', head: true })
+      .is('read_at', null);
+    setUnreadCount(count ?? 0);
+  }, [profile]);
+
+  useEffect(() => {
+    loadUnreadCount();
+  }, [loadUnreadCount]);
+
+  const closeNotifications = useCallback(() => {
+    setNotificationsVisible(false);
+    loadUnreadCount();
+  }, [loadUnreadCount]);
 
   useEffect(() => {
     loadProjects();
@@ -173,9 +194,20 @@ export function Dashboard() {
           >
             <MaterialCommunityIcons name="help-circle-outline" size={19} color={colors.textDim} />
           </Pressable>
-          <View style={styles.notificationSlot} accessible={false}>
+          <Pressable
+            onPress={() => setNotificationsVisible(true)}
+            style={styles.notificationSlot}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
+          >
             <MaterialCommunityIcons name="bell-outline" size={18} color={colors.textDim} />
-          </View>
+            {unreadCount > 0 ? (
+              <View style={styles.notificationDot}>
+                <Text style={styles.notificationDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            ) : null}
+          </Pressable>
           <Pressable
             onPress={() => setProfileVisible(true)}
             accessibilityRole="button"
@@ -276,6 +308,7 @@ export function Dashboard() {
       </View>
 
       <HelpScreen visible={helpVisible} onClose={() => setHelpVisible(false)} onReplayOnboarding={replayOnboarding} />
+      <NotificationsScreen visible={notificationsVisible} onClose={closeNotifications} />
       <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <OnboardingCarousel role={onboardingRole} onClose={closeOnboarding} />
     </View>
@@ -336,6 +369,23 @@ const styles = StyleSheet.create({
   },
   notificationSlot: {
     padding: 2,
+  },
+  notificationDot: {
+    position: 'absolute',
+    top: -4,
+    right: -6,
+    minWidth: 14,
+    height: 14,
+    borderRadius: 7,
+    paddingHorizontal: 3,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationDotText: {
+    fontFamily: font.bodyBold,
+    fontSize: 9,
+    color: colors.text,
   },
   signOut: {
     fontFamily: font.body,

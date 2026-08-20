@@ -31,4 +31,12 @@ export const EXPECTED_MIGRATIONS: string[] = [
   '022_disband_team.sql',
   '023_creation_request_cleanup.sql',
   '024_migrations_status.sql',
+  '025_reject_game_participant.sql',
+  '026_project_archival.sql',
+  '027_clubs_schema.sql',
+  '028_clubs_admin_ui.sql',
+  '029_club_archival.sql',
+  '030_closed_project_cascade.sql',
+  '031_active_game_visibility.sql',
+  '032_notifications.sql',
 ];
