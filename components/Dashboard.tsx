@@ -56,7 +56,14 @@ export function Dashboard() {
     }
     let cancelled = false;
     getActiveGame(profile.id).then((game) => {
-      if (!cancelled) setActiveGame(game);
+      if (cancelled) return;
+      setActiveGame(game);
+      // Restoring from local storage (app relaunch, or resuming a session
+      // that started before this device last synced) never used to touch
+      // the server -- active_game_id was only written inside startGame()
+      // itself. Re-assert it here too so a stale/never-synced row doesn't
+      // leave the organizer's "в игре" badge permanently wrong.
+      supabase.from('profiles').update({ active_game_id: game?.gameId ?? null }).eq('id', profile.id);
     });
     return () => {
       cancelled = true;
