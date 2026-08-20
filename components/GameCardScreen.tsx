@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { confirmAsync } from '../lib/confirm';
+import { withRetry } from '../lib/retry';
 import { useAuth } from '../contexts/AuthContext';
 import type {
   Game,
@@ -166,9 +167,9 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
     if (ownMembership) {
       if (!teamSideId) return;
       setSubmitting(true);
-      const { error } = await supabase
-        .from('game_participants')
-        .insert({ game_id: gameId, team_id: ownMembership.team_id, profile_id: profile.id });
+      const { error } = await withRetry(() =>
+        supabase.from('game_participants').insert({ game_id: gameId, team_id: ownMembership.team_id, profile_id: profile.id })
+      );
       setSubmitting(false);
       if (error) {
         setError(error.message);
@@ -180,9 +181,9 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
 
     if (!noTeamSideId) return;
     setSubmitting(true);
-    const { error } = await supabase
-      .from('game_participants')
-      .insert({ game_id: gameId, team_id: null, profile_id: profile.id, side_id: noTeamSideId });
+    const { error } = await withRetry(() =>
+      supabase.from('game_participants').insert({ game_id: gameId, team_id: null, profile_id: profile.id, side_id: noTeamSideId })
+    );
     setSubmitting(false);
     if (error) {
       setError(error.message);

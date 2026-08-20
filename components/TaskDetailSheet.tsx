@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { withRetry } from '../lib/retry';
 import type { Task, TaskAttachment } from '../lib/database.types';
 import { TASK_STATUS_LABEL, TASK_VISIBILITY_LABEL, type TaskParticipantOption, type TaskSideOption, type TaskTeamOption } from '../lib/tasks';
 import { Button } from './Button';
@@ -88,7 +89,7 @@ export function TaskDetailSheet({
   const run = async (action: () => PromiseLike<{ error: { message: string } | null }>) => {
     setSubmitting(true);
     setError(null);
-    const { error: actionError } = await action();
+    const { error: actionError } = await withRetry(action);
     setSubmitting(false);
     if (actionError) {
       setError(actionError.message);
