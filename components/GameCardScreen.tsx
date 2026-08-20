@@ -23,6 +23,7 @@ import { Chip } from './Chip';
 import { Button } from './Button';
 import { GameStagesList } from './GameStagesList';
 import { GameAttachmentsGrid } from './GameAttachmentsGrid';
+import { GameResultsSummary } from './GameResultsSummary';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 import { TasksSection } from './TasksSection';
 import { colors, font, radii, spacing } from '../lib/theme';
@@ -233,6 +234,7 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
   const alreadyRegistered = myStatus === 'pending' || myStatus === 'confirmed';
   const canRegister =
     rulesAccepted && (ownMembership ? !!teamSideId && !alreadyRegistered : !!noTeamSideId && !alreadyRegistered);
+  const ended = !!game?.ends_at && new Date(game.ends_at).getTime() <= Date.now();
 
   if (loading) {
     return (
@@ -297,21 +299,23 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
         </>
       ) : null}
 
-      {stages.length > 0 ? (
+      {!ended && stages.length > 0 ? (
         <>
           <Text style={styles.sectionTitle}>Этапы</Text>
           <GameStagesList stages={stages} />
         </>
       ) : null}
 
-      {attachments.length > 0 ? (
+      {!ended && attachments.length > 0 ? (
         <>
           <Text style={styles.sectionTitle}>Файлы</Text>
           <GameAttachmentsGrid attachments={attachments} />
         </>
       ) : null}
 
-      {showRegistration ? (
+      {ended ? <GameResultsSummary gameId={gameId} stages={stages} attachments={attachments} /> : null}
+
+      {!ended && showRegistration ? (
         <>
           <Text style={styles.sectionTitle}>Регистрация</Text>
           <Pressable
@@ -370,7 +374,7 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
         </>
       ) : null}
 
-      {alreadyRegistered && (noTeamSideId || teamSideId) ? (
+      {!ended && alreadyRegistered && (noTeamSideId || teamSideId) ? (
         <>
           <Text style={styles.sectionTitle}>
             Состав стороны{sides.find((s) => s.id === (noTeamSideId ?? teamSideId))?.name
