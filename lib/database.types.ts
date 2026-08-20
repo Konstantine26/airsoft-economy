@@ -285,7 +285,13 @@ export type MigrationApplied = {
   applied_at: string;
 };
 
-export type NotificationKind = 'task_assigned' | 'task_reward' | 'money_received' | 'request_confirmed' | 'request_rejected';
+export type NotificationKind =
+  | 'task_assigned'
+  | 'task_reward'
+  | 'money_received'
+  | 'request_confirmed'
+  | 'request_rejected'
+  | 'announcement';
 
 export type Notification = {
   id: string;
@@ -986,6 +992,15 @@ export type Database = {
           p_recipient_profile_id?: string | null;
         };
         Returns: Task;
+      };
+      send_game_announcement: {
+        Args: {
+          p_game_id: string;
+          p_title: string;
+          p_body?: string | null;
+          p_side_id?: string | null;
+        };
+        Returns: number;
       };
       set_team_avatar: {
         Args: {

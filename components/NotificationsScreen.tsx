@@ -19,6 +19,7 @@ const KIND_ICON: Record<NotificationKind, keyof typeof MaterialCommunityIcons.gl
   money_received: 'cash-plus',
   request_confirmed: 'check-circle-outline',
   request_rejected: 'close-circle-outline',
+  announcement: 'bullhorn-outline',
 };
 
 const dateFormatter = new Intl.DateTimeFormat('ru-RU', {

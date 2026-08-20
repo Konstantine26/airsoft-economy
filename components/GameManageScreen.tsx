@@ -27,6 +27,7 @@ import { DateTimeField } from './DateTimeField';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 import { ImageLightbox } from './ImageLightbox';
 import { TasksSection } from './TasksSection';
+import { GameAnnouncementForm } from './GameAnnouncementForm';
 import { colors, font, radii, spacing } from '../lib/theme';
 
 const ATTACHMENTS_BUCKET = 'game-attachments';
@@ -92,9 +93,9 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [editGameType, setEditGameType] = useState<GameType | null>(null);
   const [editPolygonId, setEditPolygonId] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'sides' | 'participants' | 'applications' | 'tasks'>(
-    'overview'
-  );
+  const [activeTab, setActiveTab] = useState<
+    'overview' | 'sides' | 'participants' | 'applications' | 'tasks' | 'announce'
+  >('overview');
   const [applicationsFilter, setApplicationsFilter] = useState<'new' | 'approved'>('new');
 
   const loadTraders = useCallback(async () => {
@@ -498,6 +499,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
         <Chip label="Участники" selected={activeTab === 'participants'} onPress={() => setActiveTab('participants')} />
         <Chip label="Заявки" selected={activeTab === 'applications'} onPress={() => setActiveTab('applications')} />
         <Chip label="Задания" selected={activeTab === 'tasks'} onPress={() => setActiveTab('tasks')} />
+        <Chip label="Объявления" selected={activeTab === 'announce'} onPress={() => setActiveTab('announce')} />
       </View>
 
       {activeTab === 'overview' ? (
@@ -819,6 +821,13 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
         <>
       <Text style={styles.sectionTitle}>Задания</Text>
       <TasksSection gameId={game.id} isOrganizer />
+        </>
+      ) : null}
+
+      {activeTab === 'announce' ? (
+        <>
+      <Text style={styles.sectionTitle}>Объявления</Text>
+      <GameAnnouncementForm gameId={game.id} sides={sides} />
         </>
       ) : null}
 
