@@ -260,6 +260,11 @@ export type TaskAttachment = {
   created_at: string;
 };
 
+export type MigrationApplied = {
+  filename: string;
+  applied_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -780,6 +785,12 @@ export type Database = {
             referencedColumns: ['id'];
           },
         ];
+      };
+      _migrations_applied: {
+        Row: MigrationApplied;
+        Insert: Partial<MigrationApplied> & { filename: string };
+        Update: Partial<MigrationApplied>;
+        Relationships: [];
       };
     };
     Views: Record<string, never>;
