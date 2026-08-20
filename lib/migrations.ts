@@ -39,4 +39,5 @@ export const EXPECTED_MIGRATIONS: string[] = [
   '030_closed_project_cascade.sql',
   '031_active_game_visibility.sql',
   '032_notifications.sql',
+  '033_sync_commander_membership.sql',
 ];
