@@ -32,6 +32,7 @@ export function TraderScreen({ traderGames, activeProjectId }: Props) {
       .from('games')
       .select('*, project:projects(*), polygon:polygons(*)')
       .in('id', gameIds)
+      .eq('status', 'published')
       .order('created_at', { ascending: false });
     const rows = ((data as GameWithRelations[]) ?? []).filter((g) => g.project_id === activeProjectId);
     setGames(rows);

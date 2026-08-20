@@ -44,10 +44,32 @@ function storedFromBuffer(buffer: string): string {
   return out;
 }
 
-// Reconstructs the day-order buffer from a "ГГГГ-ММ-ДД ЧЧ:ММ" value coming from
-// outside (an existing game's saved date, or an external reset to '').
+// Reconstructs the day-order buffer from a value coming from outside: either
+// this component's own "ГГГГ-ММ-ДД ЧЧ:ММ" stored shape, or a full ISO
+// timestamptz straight from Supabase (e.g. game.starts_at, always UTC). The
+// two need different handling -- an ISO string's digits are UTC clock digits,
+// not the organizer's local wall-clock digits, so slicing them positionally
+// like the plain shape would silently show the wrong hour after a UTC offset.
+// Only convert through Date (and thus through the local timezone) for actual
+// ISO input, detected by the "T" separator; the plain shape is left exactly
+// as before since it's already local and Date-string-parsing beyond ISO 8601
+// isn't guaranteed portable across JS engines (V8 vs Hermes on native).
 function bufferFromStored(stored: string): string {
-  const raw = digitsOf(stored).slice(0, 12);
+  const trimmed = stored.trim();
+  if (/^\d{4}-\d{2}-\d{2}T/.test(trimmed)) {
+    const parsed = new Date(trimmed);
+    if (!Number.isNaN(parsed.getTime())) {
+      const pad = (n: number) => String(n).padStart(2, '0');
+      return (
+        pad(parsed.getDate()) +
+        pad(parsed.getMonth() + 1) +
+        String(parsed.getFullYear()) +
+        pad(parsed.getHours()) +
+        pad(parsed.getMinutes())
+      );
+    }
+  }
+  const raw = digitsOf(trimmed).slice(0, 12);
   const year = raw.slice(0, 4);
   const month = raw.slice(4, 6);
   const day = raw.slice(6, 8);

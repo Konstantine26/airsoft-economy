@@ -318,6 +318,12 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
       {!ended && showRegistration ? (
         <>
           <Text style={styles.sectionTitle}>Регистрация</Text>
+          {game.rules ? (
+            <Card style={styles.rulesCard}>
+              <Text style={styles.rulesTitle}>Правила</Text>
+              <Text style={styles.label}>{game.rules}</Text>
+            </Card>
+          ) : null}
           <Pressable
             style={styles.checkboxRow}
             onPress={() => setRulesAccepted((v) => !v)}
@@ -492,6 +498,15 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: spacing.sm,
     marginBottom: spacing.sm,
+  },
+  rulesCard: {
+    marginBottom: spacing.sm,
+  },
+  rulesTitle: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 13,
+    color: colors.text,
+    marginBottom: 4,
   },
   checkbox: {
     width: 20,

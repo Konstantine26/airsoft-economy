@@ -45,7 +45,11 @@ export function PlayerGamesScreen({ ownMembership, activeProjectId, onOpenGame }
     }
     const [statusRes, gamesRes] = await Promise.all([
       supabase.from('game_participants').select('game_id, status').eq('profile_id', profile.id),
-      supabase.from('games').select('*, project:projects(*), polygon:polygons(*)').order('starts_at', { ascending: true }),
+      supabase
+        .from('games')
+        .select('*, project:projects(*), polygon:polygons(*)')
+        .eq('status', 'published')
+        .order('starts_at', { ascending: true }),
     ]);
 
     const statusMap = new Map<string, GameParticipantStatus>();

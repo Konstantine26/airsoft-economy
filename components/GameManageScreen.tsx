@@ -16,14 +16,14 @@ import type {
   Profile,
   Project,
 } from '../lib/database.types';
-import { GAME_TYPES, GAME_TYPE_LABEL, type GameType } from '../lib/gameTypes';
+import { GAME_TYPE_LABEL } from '../lib/gameTypes';
 import { isImageFile } from '../lib/files';
 import { Avatar } from './Avatar';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
-import { DateTimeField } from './DateTimeField';
+import { CreateGameScreen } from './CreateGameScreen';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 import { ImageLightbox } from './ImageLightbox';
 import { TasksSection } from './TasksSection';
@@ -86,12 +86,6 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
 
   const [editingCard, setEditingCard] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editStartsAt, setEditStartsAt] = useState('');
-  const [editEndsAt, setEditEndsAt] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-  const [editGameType, setEditGameType] = useState<GameType | null>(null);
-  const [editPolygonId, setEditPolygonId] = useState<string | null>(null);
 
   const [activeTab, setActiveTab] = useState<
     'overview' | 'sides' | 'participants' | 'applications' | 'tasks' | 'announce'
@@ -190,48 +184,6 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     setParticipants(rows);
     await loadTraders();
   }, [gameId, loadTraders]);
-
-  const startEditCard = () => {
-    if (!game) return;
-    setEditName(game.name);
-    setEditStartsAt(game.starts_at ? game.starts_at.slice(0, 16).replace('T', ' ') : '');
-    setEditEndsAt(game.ends_at ? game.ends_at.slice(0, 16).replace('T', ' ') : '');
-    setEditDescription(game.description ?? '');
-    setEditGameType(game.game_type);
-    setEditPolygonId(game.polygon_id);
-    setEditingCard(true);
-  };
-
-  const saveCard = async () => {
-    if (!game || !editName.trim() || !editPolygonId) return;
-    setError(null);
-    const startsAtDate = editStartsAt.trim() ? new Date(editStartsAt.trim()) : null;
-    if (startsAtDate && Number.isNaN(startsAtDate.getTime())) {
-      setError('Не удалось разобрать дату начала игры');
-      return;
-    }
-    const endsAtDate = editEndsAt.trim() ? new Date(editEndsAt.trim()) : null;
-    if (endsAtDate && Number.isNaN(endsAtDate.getTime())) {
-      setError('Не удалось разобрать дату окончания игры');
-      return;
-    }
-    const updates = {
-      name: editName.trim(),
-      polygon_id: editPolygonId,
-      starts_at: startsAtDate ? startsAtDate.toISOString() : null,
-      ends_at: endsAtDate ? endsAtDate.toISOString() : null,
-      description: editDescription.trim() || null,
-      game_type: editGameType,
-    };
-    const { error } = await supabase.from('games').update(updates).eq('id', game.id);
-    if (error) {
-      setError(error.message);
-      return;
-    }
-    const updatedPolygon = polygons.find((p) => p.id === editPolygonId) ?? null;
-    setGame({ ...game, ...updates, polygon: updatedPolygon });
-    setEditingCard(false);
-  };
 
   const deleteGame = async () => {
     if (!game) return;
@@ -476,6 +428,20 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     );
   }
 
+  if (editingCard) {
+    return (
+      <CreateGameScreen
+        projects={[]}
+        editGame={game}
+        onCancel={() => setEditingCard(false)}
+        onDone={() => {
+          setEditingCard(false);
+          load();
+        }}
+      />
+    );
+  }
+
   const confirmedBySide = (sideId: string) =>
     participants.filter((p) => p.effective_side_id === sideId && p.status === 'confirmed');
   const confirmedWithoutSide = participants.filter((p) => !p.effective_side_id && p.status === 'confirmed');
@@ -504,54 +470,19 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
 
       {activeTab === 'overview' ? (
         <>
-      {editingCard ? (
-        <>
-          <Text style={styles.sectionTitle}>Карточка игры</Text>
-          <TextField style={styles.input} label="Название" value={editName} onChangeText={setEditName} />
-          <DateTimeField style={styles.input} label="Дата начала" value={editStartsAt} onChangeText={setEditStartsAt} />
-          <DateTimeField style={styles.input} label="Дата окончания" value={editEndsAt} onChangeText={setEditEndsAt} />
-          <TextField
-            style={[styles.input, styles.textArea]}
-            label="Описание сценария"
-            value={editDescription}
-            onChangeText={setEditDescription}
-            multiline
-            numberOfLines={4}
-          />
-          <Text style={styles.label}>Тип игры</Text>
-          <View style={styles.chips}>
-            <Chip label="—" selected={!editGameType} onPress={() => setEditGameType(null)} />
-            {GAME_TYPES.map((t) => (
-              <Chip key={t} label={GAME_TYPE_LABEL[t]} selected={editGameType === t} onPress={() => setEditGameType(t)} />
-            ))}
-          </View>
-          <Text style={styles.label}>Полигон</Text>
-          <View style={styles.chips}>
-            {polygons.map((p) => (
-              <Chip key={p.id} label={p.name} selected={editPolygonId === p.id} onPress={() => setEditPolygonId(p.id)} />
-            ))}
-          </View>
-          <View style={styles.row}>
-            <Button title="Сохранить" onPress={saveCard} style={styles.flexButton} />
-            <Button title="Отмена" variant="secondary" onPress={() => setEditingCard(false)} style={styles.flexButton} />
-          </View>
-        </>
-      ) : (
-        <>
-          <Text style={styles.title}>{game.name}</Text>
-          {game.game_type ? <Text style={styles.subtitle}>{GAME_TYPE_LABEL[game.game_type]}</Text> : null}
-          {game.starts_at ? (
-            <Text style={styles.subtitle}>
-              Начало: {new Date(game.starts_at).toLocaleString()}
-              {game.ends_at ? ` · Окончание: ${new Date(game.ends_at).toLocaleString()}` : ''}
-            </Text>
-          ) : null}
-          {game.description ? <Text style={styles.subtitle}>{game.description}</Text> : null}
-          <Pressable onPress={startEditCard}>
-            <Text style={styles.editLink}>Редактировать карточку игры</Text>
-          </Pressable>
-        </>
-      )}
+      {game.status === 'draft' ? <Text style={styles.draftBadge}>Черновик — виден только организаторам</Text> : null}
+      <Text style={styles.title}>{game.name}</Text>
+      {game.game_type ? <Text style={styles.subtitle}>{GAME_TYPE_LABEL[game.game_type]}</Text> : null}
+      {game.starts_at ? (
+        <Text style={styles.subtitle}>
+          Начало: {new Date(game.starts_at).toLocaleString()}
+          {game.ends_at ? ` · Окончание: ${new Date(game.ends_at).toLocaleString()}` : ''}
+        </Text>
+      ) : null}
+      {game.description ? <Text style={styles.subtitle}>{game.description}</Text> : null}
+      <Pressable onPress={() => setEditingCard(true)}>
+        <Text style={styles.editLink}>Редактировать карточку игры</Text>
+      </Pressable>
 
       <Text style={styles.sectionTitle}>Полигон</Text>
       {game.polygon ? (
@@ -1015,6 +946,12 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontSize: 13,
     marginTop: 6,
+  },
+  draftBadge: {
+    fontFamily: font.bodySemiBold,
+    color: colors.crown,
+    fontSize: 12,
+    marginBottom: 4,
   },
   deleteLink: {
     fontFamily: font.body,

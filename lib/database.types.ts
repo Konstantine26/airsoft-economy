@@ -153,6 +153,8 @@ export type PolygonMap = {
   created_at: string;
 };
 
+export type GameStatus = 'draft' | 'published';
+
 export type Game = {
   id: string;
   project_id: string;
@@ -162,6 +164,11 @@ export type Game = {
   ends_at: string | null;
   description: string | null;
   game_type: GameType | null;
+  cover_url: string | null;
+  is_paid: boolean;
+  price: number | null;
+  rules: string | null;
+  status: GameStatus;
   created_by: string | null;
   created_at: string;
 };

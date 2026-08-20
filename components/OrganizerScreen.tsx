@@ -6,7 +6,7 @@ import type { Game, Polygon, Project } from '../lib/database.types';
 import { Card } from './Card';
 import { Button } from './Button';
 import { GameManageScreen } from './GameManageScreen';
-import { CreateGameWizard } from './CreateGameWizard';
+import { CreateGameScreen } from './CreateGameScreen';
 import { ClosedProjectAccessSheet } from './ClosedProjectAccessSheet';
 import { colors, font, spacing } from '../lib/theme';
 
@@ -15,6 +15,7 @@ type GameStats = { sideCount: number; participantCount: number; pendingCount: nu
 export type OrganizerView = 'overview' | 'games';
 
 function gameStatusLabel(game: GameWithRelations): string {
+  if (game.status === 'draft') return 'Черновик';
   const now = Date.now();
   if (!game.starts_at) return 'Дата не назначена';
   const starts = new Date(game.starts_at).getTime();
@@ -165,7 +166,7 @@ export function OrganizerScreen({ view, activeProjectId }: Props) {
 
   if (creatingGame) {
     return (
-      <CreateGameWizard
+      <CreateGameScreen
         projects={organizerProjects}
         onCancel={() => setCreatingGame(false)}
         onDone={(gameId) => {

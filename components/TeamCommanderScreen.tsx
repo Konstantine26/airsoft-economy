@@ -125,6 +125,7 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
     const { data } = await supabase
       .from('games')
       .select('*, project:projects(name), polygon:polygons(*)')
+      .eq('status', 'published')
       .order('created_at', { ascending: false });
     const rows: GameWithProject[] = (data ?? [])
       .filter((row: any) => row.project_id === activeProjectId)
