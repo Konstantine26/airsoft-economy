@@ -23,6 +23,11 @@ export function AdminClubsTab() {
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
 
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
+  const [deleteCounts, setDeleteCounts] = useState<{ projects: number; polygons: number } | null>(null);
+  const [deleting, setDeleting] = useState(false);
+
   const loadClubs = useCallback(async () => {
     setLoading(true);
     const [clubsRes, profilesRes] = await Promise.all([
@@ -43,6 +48,9 @@ export function AdminClubsTab() {
     setError(null);
     setSelectedClub(club);
     setEditing(false);
+    setConfirmingDelete(false);
+    setDeleteConfirmText('');
+    setDeleteCounts(null);
     const { data } = await supabase.from('club_admins').select('profile_id').eq('club_id', club.id);
     setClubAdminIds(new Set((data ?? []).map((r) => r.profile_id)));
   };
@@ -87,15 +95,91 @@ export function AdminClubsTab() {
     setEditing(false);
   };
 
-  const deleteClub = async (club: Club) => {
+  const toggleArchived = async (club: Club) => {
     setError(null);
-    const { error } = await supabase.from('clubs').delete().eq('id', club.id);
+    const nextArchivedAt = club.archived_at ? null : new Date().toISOString();
+    const { error } = await supabase.from('clubs').update({ archived_at: nextArchivedAt }).eq('id', club.id);
     if (error) {
       setError(error.message);
       return;
     }
-    setSelectedClub(null);
-    loadClubs();
+    const updated = { ...club, archived_at: nextArchivedAt };
+    setSelectedClub(updated);
+    setClubs((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  };
+
+  const startDeleteConfirm = async (club: Club) => {
+    setError(null);
+    const [projectsRes, polygonsRes] = await Promise.all([
+      supabase.from('projects').select('id', { count: 'exact', head: true }).eq('club_id', club.id),
+      supabase.from('polygons').select('id', { count: 'exact', head: true }).eq('club_id', club.id),
+    ]);
+    setDeleteCounts({ projects: projectsRes.count ?? 0, polygons: polygonsRes.count ?? 0 });
+    setDeleteConfirmText('');
+    setConfirmingDelete(true);
+  };
+
+  // Postgres cascades the DB rows (projects.club_id/polygons.club_id are
+  // "on delete cascade", so every game/task/transaction/etc already chained
+  // off a project, plus polygon_maps, disappear on their own) -- but it
+  // never touches Supabase Storage, so the actual files have to be removed
+  // by hand first or they'd leak forever.
+  const deleteClub = async (club: Club) => {
+    setError(null);
+    setDeleting(true);
+    try {
+      const { data: projects } = await supabase.from('projects').select('id').eq('club_id', club.id);
+      const projectIds = (projects ?? []).map((p) => p.id);
+
+      const { data: polygons } = await supabase.from('polygons').select('id').eq('club_id', club.id);
+      const polygonIds = (polygons ?? []).map((p) => p.id);
+
+      let gameIds: string[] = [];
+      if (projectIds.length > 0) {
+        const { data: games } = await supabase.from('games').select('id').in('project_id', projectIds);
+        gameIds = (games ?? []).map((g) => g.id);
+      }
+
+      if (gameIds.length > 0) {
+        const { data: gameAttachments } = await supabase
+          .from('game_attachments')
+          .select('storage_path')
+          .in('game_id', gameIds);
+        const gamePaths = (gameAttachments ?? []).map((a) => a.storage_path);
+        if (gamePaths.length > 0) await supabase.storage.from('game-attachments').remove(gamePaths);
+
+        const { data: tasks } = await supabase.from('tasks').select('id').in('game_id', gameIds);
+        const taskIds = (tasks ?? []).map((t) => t.id);
+        if (taskIds.length > 0) {
+          const { data: taskAttachments } = await supabase
+            .from('task_attachments')
+            .select('storage_path')
+            .in('task_id', taskIds);
+          const taskPaths = (taskAttachments ?? []).map((a) => a.storage_path);
+          if (taskPaths.length > 0) await supabase.storage.from('task-attachments').remove(taskPaths);
+        }
+      }
+
+      if (polygonIds.length > 0) {
+        const { data: polygonMaps } = await supabase
+          .from('polygon_maps')
+          .select('storage_path')
+          .in('polygon_id', polygonIds);
+        const mapPaths = (polygonMaps ?? []).map((m) => m.storage_path);
+        if (mapPaths.length > 0) await supabase.storage.from('polygon-maps').remove(mapPaths);
+      }
+
+      const { error } = await supabase.from('clubs').delete().eq('id', club.id);
+      if (error) {
+        setError(error.message);
+        return;
+      }
+      setSelectedClub(null);
+      setConfirmingDelete(false);
+      loadClubs();
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const toggleClubAdmin = async (profileId: string) => {
@@ -156,14 +240,55 @@ export function AdminClubsTab() {
           <>
             <Text style={styles.title}>{selectedClub.name}</Text>
             {selectedClub.description ? <Text style={styles.subtitle}>{selectedClub.description}</Text> : null}
+            <Text style={styles.label}>
+              {selectedClub.archived_at
+                ? `В архиве с ${new Date(selectedClub.archived_at).toLocaleDateString()}`
+                : 'Не в архиве'}
+            </Text>
             <View style={styles.row}>
               <Pressable onPress={startEditing}>
                 <Text style={styles.editLink}>Редактировать</Text>
               </Pressable>
-              <Pressable onPress={() => deleteClub(selectedClub)}>
-                <Text style={styles.deleteLink}>Удалить клуб</Text>
+              <Pressable onPress={() => toggleArchived(selectedClub)}>
+                <Text style={styles.editLink}>{selectedClub.archived_at ? 'Вернуть из архива' : 'Архивировать'}</Text>
               </Pressable>
+              {!confirmingDelete ? (
+                <Pressable onPress={() => startDeleteConfirm(selectedClub)}>
+                  <Text style={styles.deleteLink}>Удалить клуб</Text>
+                </Pressable>
+              ) : null}
             </View>
+
+            {confirmingDelete ? (
+              <Card style={styles.dangerCard}>
+                <Text style={styles.dangerTitle}>Удаление необратимо</Text>
+                <Text style={styles.label}>
+                  Будет удалено безвозвратно: {deleteCounts?.projects ?? 0} проект(ов) — со всеми играми,
+                  заявками, заданиями и историей операций внутри, {deleteCounts?.polygons ?? 0} полигон(ов)
+                  — со всеми картами. Команды и игроки клуба не затрагиваются.
+                </Text>
+                <Text style={styles.label}>Чтобы подтвердить, введите название клуба полностью: «{selectedClub.name}»</Text>
+                <TextField style={styles.input} value={deleteConfirmText} onChangeText={setDeleteConfirmText} />
+                <View style={styles.row}>
+                  <Button
+                    title={deleting ? 'Удаление…' : 'Подтвердить удаление'}
+                    variant="danger"
+                    disabled={deleteConfirmText.trim() !== selectedClub.name || deleting}
+                    onPress={() => deleteClub(selectedClub)}
+                    style={styles.flexButton}
+                  />
+                  <Button
+                    title="Отмена"
+                    variant="secondary"
+                    onPress={() => {
+                      setConfirmingDelete(false);
+                      setDeleteConfirmText('');
+                    }}
+                    style={styles.flexButton}
+                  />
+                </View>
+              </Card>
+            ) : null}
           </>
         )}
 
@@ -194,7 +319,10 @@ export function AdminClubsTab() {
         {clubs.map((club) => (
           <Pressable key={club.id} onPress={() => openClub(club)}>
             <Card>
-              <Text style={styles.cardTitle}>{club.name}</Text>
+              <Text style={styles.cardTitle}>
+                {club.name}
+                {club.archived_at ? ' 🗄️' : ''}
+              </Text>
               {club.description ? <Text style={styles.label}>{club.description}</Text> : null}
             </Card>
           </Pressable>
@@ -305,5 +433,15 @@ const styles = StyleSheet.create({
     fontFamily: font.body,
     color: colors.danger,
     marginBottom: spacing.md,
+  },
+  dangerCard: {
+    marginTop: spacing.sm,
+    borderColor: colors.danger,
+  },
+  dangerTitle: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.danger,
+    marginBottom: 4,
   },
 });
