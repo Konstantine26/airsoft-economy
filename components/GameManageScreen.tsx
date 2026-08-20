@@ -49,6 +49,7 @@ type ParticipantRow = GameParticipant & {
   full_name: string;
   avatar_url: string | null;
   effective_side_id: string | null;
+  in_game: boolean;
 };
 
 type TraderRow = GameTrader & { full_name: string; side_ids: string[] };
@@ -121,7 +122,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
         supabase.from('game_team_sides').select('team_id, side_id').eq('game_id', gameId),
         supabase
           .from('game_participants')
-          .select('*, team:teams(name), profile:profiles(full_name, avatar_url)')
+          .select('*, team:teams(name), profile:profiles(full_name, avatar_url, active_game_id)')
           .eq('game_id', gameId),
         supabase.from('game_stages').select('*').eq('game_id', gameId).order('position', { ascending: true }),
         supabase.from('game_attachments').select('*').eq('game_id', gameId).order('created_at', { ascending: false }),
@@ -145,6 +146,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       full_name: row.profile?.full_name || '(без имени)',
       avatar_url: row.profile?.avatar_url ?? null,
       effective_side_id: row.side_id ?? teamSideMap.get(row.team_id) ?? null,
+      in_game: row.profile?.active_game_id === gameId,
     }));
     setParticipants(rows);
 
@@ -182,6 +184,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       full_name: row.profile?.full_name || '(без имени)',
       avatar_url: row.profile?.avatar_url ?? null,
       effective_side_id: row.side_id ?? teamSideMap.get(row.team_id) ?? null,
+      in_game: row.profile?.active_game_id === gameId,
     }));
     setParticipants(rows);
     await loadTraders();
@@ -850,6 +853,7 @@ function ParticipantRowView({
         <Text style={row.status === 'confirmed' ? styles.statusConfirmed : styles.statusPending}>
           {row.status === 'confirmed' ? 'Подтверждён' : 'На подтверждении'}
         </Text>
+        {row.in_game ? <Text style={styles.inGameBadge}>🟢 в игре</Text> : null}
       </View>
       <View style={styles.chips}>
         {row.status === 'pending' ? (
@@ -1032,6 +1036,11 @@ const styles = StyleSheet.create({
     color: colors.accent,
   },
   statusConfirmed: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 11.5,
+    color: colors.success,
+  },
+  inGameBadge: {
     fontFamily: font.bodySemiBold,
     fontSize: 11.5,
     color: colors.success,

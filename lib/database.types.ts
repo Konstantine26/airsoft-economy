@@ -9,6 +9,7 @@ export type Profile = {
   must_change_password: boolean;
   participant_number: number;
   avatar_url: string | null;
+  active_game_id: string | null;
   created_at: string;
 };
 
@@ -291,7 +292,14 @@ export type Database = {
         Row: Profile;
         Insert: Partial<Profile> & { id: string };
         Update: Partial<Profile>;
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: 'profiles_active_game_id_fkey';
+            columns: ['active_game_id'];
+            referencedRelation: 'games';
+            referencedColumns: ['id'];
+          },
+        ];
       };
       teams: {
         Row: Team;

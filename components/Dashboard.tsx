@@ -70,6 +70,10 @@ export function Dashboard() {
       const next: ActiveGame = { gameId: game.id, projectId: game.project_id };
       setActiveGame(next);
       persistActiveGame(profile.id, next);
+      // Best-effort: lets the organizer see who has checked in
+      // (GameManageScreen). The local state above is the source of truth
+      // for resuming on this device, so a failure here isn't surfaced.
+      supabase.from('profiles').update({ active_game_id: game.id }).eq('id', profile.id);
     },
     [profile]
   );
@@ -77,6 +81,7 @@ export function Dashboard() {
   const endGame = useCallback(() => {
     if (!profile) return;
     setActiveGame(null);
+    supabase.from('profiles').update({ active_game_id: null }).eq('id', profile.id);
     persistClearActiveGame(profile.id);
   }, [profile]);
 
