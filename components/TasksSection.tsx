@@ -47,7 +47,8 @@ export function TasksSection({
       supabase
         .from('game_participants')
         .select('profile_id, team_id, side_id, profile:profiles(full_name)')
-        .eq('game_id', gameId),
+        .eq('game_id', gameId)
+        .neq('status', 'rejected'),
       supabase.from('profiles').select('id, full_name'),
     ]);
 

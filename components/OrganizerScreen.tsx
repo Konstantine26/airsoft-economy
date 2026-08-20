@@ -98,6 +98,7 @@ export function OrganizerScreen({ view, activeProjectId }: Props) {
       stats[row.game_id].sideCount += 1;
     }
     for (const row of participantsRes.data ?? []) {
+      if (row.status === 'rejected') continue;
       stats[row.game_id].participantCount += 1;
       if (row.status === 'pending') stats[row.game_id].pendingCount += 1;
       if (row.status === 'confirmed') stats[row.game_id].confirmedCount += 1;

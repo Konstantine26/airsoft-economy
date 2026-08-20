@@ -194,7 +194,7 @@ export function Dashboard() {
               {projects.map((project) => (
                 <Chip
                   key={project.id}
-                  label={project.name}
+                  label={project.archived_at ? `🗄️ ${project.name}` : project.name}
                   selected={activeProjectId === project.id}
                   onPress={() => setActiveProjectId(project.id)}
                   disabled={!!activeGame && project.id !== activeGame.projectId}

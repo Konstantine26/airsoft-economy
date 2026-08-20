@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Game, GameSide, Polygon, Profile, Team, TeamJoinRequest } from '../lib/database.types';
+import type { Game, GameParticipantStatus, GameSide, Polygon, Profile, Team, TeamJoinRequest } from '../lib/database.types';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { Card } from './Card';
@@ -39,7 +39,7 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
   const [activeGame, setActiveGame] = useState<GameWithProject | null>(null);
   const [sides, setSides] = useState<GameSide[]>([]);
   const [teamSideId, setTeamSideId] = useState<string | null>(null);
-  const [registeredProfiles, setRegisteredProfiles] = useState<Map<string, 'pending' | 'confirmed'>>(new Map());
+  const [registeredProfiles, setRegisteredProfiles] = useState<Map<string, GameParticipantStatus>>(new Map());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -338,7 +338,8 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
   const toggleParticipant = async (profileId: string) => {
     if (!activeGame) return;
     setError(null);
-    if (registeredProfiles.has(profileId)) {
+    const currentStatus = registeredProfiles.get(profileId);
+    if (currentStatus === 'pending' || currentStatus === 'confirmed') {
       const { error } = await supabase
         .from('game_participants')
         .delete()
@@ -354,6 +355,21 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
         return next;
       });
     } else {
+      // currentStatus is either undefined (never applied) or 'rejected' (a
+      // leftover history row from 025_reject_game_participant.sql) -- in
+      // the rejected case it has to be cleared first, same reasoning as
+      // GameCardScreen.register().
+      if (currentStatus === 'rejected') {
+        const { error: cleanupError } = await supabase
+          .from('game_participants')
+          .delete()
+          .eq('game_id', activeGame.id)
+          .eq('profile_id', profileId);
+        if (cleanupError) {
+          setError(cleanupError.message);
+          return;
+        }
+      }
       const { error } = await supabase
         .from('game_participants')
         .insert({ game_id: activeGame.id, team_id: activeTeam.id, profile_id: profileId });

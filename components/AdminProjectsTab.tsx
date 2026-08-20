@@ -170,6 +170,20 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     onProjectsChanged();
   };
 
+  const toggleArchived = async (project: Project) => {
+    setError(null);
+    const nextArchivedAt = project.archived_at ? null : new Date().toISOString();
+    const { error } = await supabase.from('projects').update({ archived_at: nextArchivedAt }).eq('id', project.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    const updated = { ...project, archived_at: nextArchivedAt };
+    setSelectedProject(updated);
+    setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    onProjectsChanged();
+  };
+
   const deleteProject = async (project: Project) => {
     setError(null);
     const { error } = await supabase.from('projects').delete().eq('id', project.id);
@@ -358,6 +372,11 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
             <Text style={styles.label}>
               Проект: {selectedProject.is_closed ? 'закрытый' : 'открытый'}
             </Text>
+            <Text style={styles.label}>
+              {selectedProject.archived_at
+                ? `В архиве с ${new Date(selectedProject.archived_at).toLocaleDateString()} — новые переводы, пополнения и списания заблокированы, баланс и история доступны как раньше`
+                : 'Не в архиве'}
+            </Text>
             <View style={styles.row}>
               <Pressable onPress={startEditProject}>
                 <Text style={styles.editLink}>Редактировать</Text>
@@ -370,6 +389,9 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
                   <Text style={styles.editLink}>Управление доступом</Text>
                 </Pressable>
               ) : null}
+              <Pressable onPress={() => toggleArchived(selectedProject)}>
+                <Text style={styles.editLink}>{selectedProject.archived_at ? 'Вернуть из архива' : 'Архивировать'}</Text>
+              </Pressable>
             </View>
           </>
         )}
@@ -436,7 +458,11 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
         {projects.map((project) => (
           <Pressable key={project.id} onPress={() => openProject(project)}>
             <Card>
-              <Text style={styles.cardTitle}>{project.name}{project.is_closed ? ' 🔒' : ''}</Text>
+              <Text style={styles.cardTitle}>
+                {project.name}
+                {project.is_closed ? ' 🔒' : ''}
+                {project.archived_at ? ' 🗄️' : ''}
+              </Text>
               {project.description ? <Text style={styles.label}>{project.description}</Text> : null}
               <Text style={styles.label}>
                 Экономика: {project.economy_enabled ? 'включена' : 'выключена'}

@@ -367,6 +367,16 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     setParticipants((prev) => prev.map((p) => (p.id === row.id ? { ...p, status: 'confirmed' } : p)));
   };
 
+  const rejectParticipant = async (row: ParticipantRow) => {
+    setError(null);
+    const { error } = await supabase.from('game_participants').update({ status: 'rejected' }).eq('id', row.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setParticipants((prev) => prev.map((p) => (p.id === row.id ? { ...p, status: 'rejected' } : p)));
+  };
+
   const removeParticipant = async (row: ParticipantRow) => {
     setError(null);
     const { error } = await supabase.from('game_participants').delete().eq('id', row.id);
@@ -741,6 +751,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
                     row={row}
                     sides={sides}
                     onConfirm={() => confirmParticipant(row)}
+                    onReject={() => rejectParticipant(row)}
                     onRemove={() => removeParticipant(row)}
                     onMove={(sideId) => moveParticipant(row, sideId)}
                   />
@@ -760,6 +771,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
               row={row}
               sides={sides}
               onConfirm={() => confirmParticipant(row)}
+              onReject={() => rejectParticipant(row)}
               onRemove={() => removeParticipant(row)}
               onMove={(sideId) => moveParticipant(row, sideId)}
             />
@@ -791,6 +803,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
             row={row}
             sides={sides}
             onConfirm={() => confirmParticipant(row)}
+            onReject={() => rejectParticipant(row)}
             onRemove={() => removeParticipant(row)}
             onMove={(sideId) => moveParticipant(row, sideId)}
           />
@@ -815,12 +828,14 @@ function ParticipantRowView({
   row,
   sides,
   onConfirm,
+  onReject,
   onRemove,
   onMove,
 }: {
   row: ParticipantRow;
   sides: GameSide[];
   onConfirm: () => void;
+  onReject: () => void;
   onRemove: () => void;
   onMove: (sideId: string | null) => void;
 }) {
@@ -838,9 +853,13 @@ function ParticipantRowView({
       </View>
       <View style={styles.chips}>
         {row.status === 'pending' ? (
-          <Button title="Подтвердить" onPress={onConfirm} style={styles.smallActionButton} />
-        ) : null}
-        <Button title="Удалить" variant="danger" onPress={onRemove} style={styles.smallActionButton} />
+          <>
+            <Button title="Подтвердить" onPress={onConfirm} style={styles.smallActionButton} />
+            <Button title="Отклонить" variant="danger" onPress={onReject} style={styles.smallActionButton} />
+          </>
+        ) : (
+          <Button title="Удалить" variant="danger" onPress={onRemove} style={styles.smallActionButton} />
+        )}
       </View>
       <Text style={styles.label}>Переместить на сторону</Text>
       <View style={styles.chips}>

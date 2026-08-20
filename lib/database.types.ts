@@ -77,6 +77,7 @@ export type Project = {
   economy_enabled: boolean;
   default_game_type: GameType | null;
   is_closed: boolean;
+  archived_at: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -180,7 +181,7 @@ export type GameTeamSide = {
   created_at: string;
 };
 
-export type GameParticipantStatus = 'pending' | 'confirmed';
+export type GameParticipantStatus = 'pending' | 'confirmed' | 'rejected';
 
 export type GameParticipant = {
   id: string;

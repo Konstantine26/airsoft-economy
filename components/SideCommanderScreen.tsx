@@ -63,6 +63,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
 
     const byTeam = new Map<string, ParticipantEntry[]>();
     for (const row of (participantsRes.data as any[]) ?? []) {
+      if (row.status === 'rejected') continue;
       const effectiveSideId = row.side_id ?? teamSideMap.get(row.team_id) ?? null;
       if (effectiveSideId !== side.id) continue;
       const entry: ParticipantEntry = {

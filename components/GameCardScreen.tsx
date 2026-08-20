@@ -115,7 +115,8 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
         supabase
           .from('game_participants')
           .select('id, side_id, team_id, team:teams(name), profile:profiles(full_name, avatar_url)')
-          .eq('game_id', gameId),
+          .eq('game_id', gameId)
+          .neq('status', 'rejected'),
       ]);
       const teamSideMap = new Map<string, string>();
       for (const row of teamSidesRes.data ?? []) {
@@ -145,7 +146,22 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
     if (!profile) return;
     setError(null);
 
-    if (myStatus) return;
+    if (myStatus === 'pending' || myStatus === 'confirmed') return;
+
+    if (myStatus === 'rejected') {
+      // A rejected row sticks around as history (see 025_reject_game_participant.sql)
+      // instead of being deleted, so re-applying has to clear it first or the
+      // unique (game_id, profile_id) constraint blocks the insert below.
+      const { error: cleanupError } = await supabase
+        .from('game_participants')
+        .delete()
+        .eq('game_id', gameId)
+        .eq('profile_id', profile.id);
+      if (cleanupError) {
+        setError(cleanupError.message);
+        return;
+      }
+    }
 
     if (ownMembership) {
       if (!teamSideId) return;
@@ -213,7 +229,7 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
     cancelApplication();
   };
 
-  const alreadyRegistered = !!myStatus;
+  const alreadyRegistered = myStatus === 'pending' || myStatus === 'confirmed';
   const canRegister =
     rulesAccepted && (ownMembership ? !!teamSideId && !alreadyRegistered : !!noTeamSideId && !alreadyRegistered);
 
