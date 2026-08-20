@@ -3,19 +3,21 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AdminTeamsTab } from './AdminTeamsTab';
 import { AdminProjectsTab } from './AdminProjectsTab';
+import { AdminClubsTab } from './AdminClubsTab';
 import { AdminMigrationsTab } from './AdminMigrationsTab';
 import { PolygonsScreen } from './PolygonsScreen';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { colors, font, spacing } from '../lib/theme';
 
-type SubTabKey = 'home' | 'users' | 'teams' | 'projects' | 'migrations';
+type SubTabKey = 'home' | 'users' | 'teams' | 'projects' | 'clubs' | 'migrations';
 type ProjectsSubTab = 'projects' | 'polygons';
 
 const HOME_CARDS: { key: SubTabKey; label: string; description: string }[] = [
   { key: 'users', label: 'Пользователи', description: 'Роли и балансы участников' },
   { key: 'teams', label: 'Команды', description: 'Список команд, командиры, балансы' },
   { key: 'projects', label: 'Проекты и игры', description: 'Проекты, организаторы, игры, полигоны' },
+  { key: 'clubs', label: 'Клубы', description: 'Клубы и их администраторы (пока без изоляции данных)' },
   { key: 'migrations', label: 'Миграции', description: 'Какие supabase/*.sql применены на этом сервере' },
 ];
 
@@ -65,6 +67,7 @@ export function AdminScreen({ activeProjectId, onProjectsChanged }: Props) {
           <AdminProjectsTab onProjectsChanged={onProjectsChanged} />
         ) : null}
         {tab === 'projects' && projectsSubTab === 'polygons' ? <PolygonsScreen /> : null}
+        {tab === 'clubs' ? <AdminClubsTab /> : null}
         {tab === 'migrations' ? <AdminMigrationsTab /> : null}
       </View>
     </View>

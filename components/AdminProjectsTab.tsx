@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Game, Polygon, Profile, Project } from '../lib/database.types';
+import type { Club, Game, Polygon, Profile, Project } from '../lib/database.types';
 import { GAME_TYPES, GAME_TYPE_LABEL, type GameType } from '../lib/gameTypes';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -21,6 +21,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [polygons, setPolygons] = useState<Polygon[]>([]);
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,26 +36,30 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
   const [newProjectEconomyEnabled, setNewProjectEconomyEnabled] = useState(false);
   const [newProjectGameType, setNewProjectGameType] = useState<GameType | null>(null);
   const [newProjectIsClosed, setNewProjectIsClosed] = useState(false);
+  const [newProjectClubId, setNewProjectClubId] = useState<string | null>(null);
   const [editingProject, setEditingProject] = useState(false);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editEconomyEnabled, setEditEconomyEnabled] = useState(false);
   const [editDefaultGameType, setEditDefaultGameType] = useState<GameType | null>(null);
   const [editIsClosed, setEditIsClosed] = useState(false);
+  const [editClubId, setEditClubId] = useState<string | null>(null);
   const [accessSheetOpen, setAccessSheetOpen] = useState(false);
 
 
   const loadProjects = useCallback(async () => {
     setLoading(true);
-    const [projectsRes, profilesRes, polygonsRes] = await Promise.all([
+    const [projectsRes, profilesRes, polygonsRes, clubsRes] = await Promise.all([
       supabase.from('projects').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('*').order('full_name', { ascending: true }),
       supabase.from('polygons').select('*').order('name', { ascending: true }),
+      supabase.from('clubs').select('*').order('name', { ascending: true }),
     ]);
     if (projectsRes.error) setError(projectsRes.error.message);
     setProjects(projectsRes.data ?? []);
     setProfiles(profilesRes.data ?? []);
     setPolygons(polygonsRes.data ?? []);
+    setClubs(clubsRes.data ?? []);
     setLoading(false);
   }, []);
 
@@ -108,6 +113,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
         economy_enabled: newProjectEconomyEnabled,
         default_game_type: newProjectGameType,
         is_closed: newProjectIsClosed,
+        club_id: newProjectClubId,
         created_by: userData.user?.id,
       })
       .select()
@@ -122,6 +128,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     setNewProjectEconomyEnabled(false);
     setNewProjectGameType(null);
     setNewProjectIsClosed(false);
+    setNewProjectClubId(null);
     await loadProjects();
     onProjectsChanged();
     if (wasClosed) {
@@ -137,6 +144,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     setEditEconomyEnabled(selectedProject.economy_enabled);
     setEditDefaultGameType(selectedProject.default_game_type);
     setEditIsClosed(selectedProject.is_closed);
+    setEditClubId(selectedProject.club_id);
     setEditingProject(true);
   };
 
@@ -157,6 +165,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
       economy_enabled: editEconomyEnabled,
       default_game_type: editDefaultGameType,
       is_closed: editIsClosed,
+      club_id: editClubId,
     };
     const { error } = await supabase.from('projects').update(updates).eq('id', selectedProject.id);
     if (error) {
@@ -338,6 +347,13 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
                 <Text style={styles.editLink}>Список команд и игроков с доступом</Text>
               </Pressable>
             ) : null}
+            <Text style={styles.label}>Клуб</Text>
+            <View style={styles.chips}>
+              <Chip label="—" selected={!editClubId} onPress={() => setEditClubId(null)} />
+              {clubs.map((c) => (
+                <Chip key={c.id} label={c.name} selected={editClubId === c.id} onPress={() => setEditClubId(c.id)} />
+              ))}
+            </View>
             <Text style={styles.label}>Тип игры по умолчанию</Text>
             <Text style={styles.label}>Автоматически проставляется в каждую новую игру проекта</Text>
             <View style={styles.chips}>
@@ -371,6 +387,9 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
             </Text>
             <Text style={styles.label}>
               Проект: {selectedProject.is_closed ? 'закрытый' : 'открытый'}
+            </Text>
+            <Text style={styles.label}>
+              Клуб: {clubs.find((c) => c.id === selectedProject.club_id)?.name ?? '— не указан'}
             </Text>
             <Text style={styles.label}>
               {selectedProject.archived_at
@@ -511,6 +530,13 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
           После создания откроется окно выбора команд и игроков с доступом
         </Text>
       ) : null}
+      <Text style={styles.label}>Клуб</Text>
+      <View style={styles.chips}>
+        <Chip label="—" selected={!newProjectClubId} onPress={() => setNewProjectClubId(null)} />
+        {clubs.map((c) => (
+          <Chip key={c.id} label={c.name} selected={newProjectClubId === c.id} onPress={() => setNewProjectClubId(c.id)} />
+        ))}
+      </View>
       <Text style={styles.label}>Тип игры по умолчанию</Text>
       <Text style={styles.label}>Автоматически проставляется в каждую новую игру проекта</Text>
       <View style={styles.chips}>

@@ -3,7 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { Polygon, PolygonMap, PolygonType } from '../lib/database.types';
+import type { Club, Polygon, PolygonMap, PolygonType } from '../lib/database.types';
 import { ImageLightbox } from './ImageLightbox';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -33,6 +33,7 @@ function isImage(contentType: string | null, fileName: string) {
 
 export function PolygonsScreen() {
   const [polygons, setPolygons] = useState<Polygon[]>([]);
+  const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function PolygonsScreen() {
   const [city, setCity] = useState('');
   const [address, setAddress] = useState('');
   const [type, setType] = useState<PolygonType>('mixed');
+  const [clubId, setClubId] = useState<string | null>(null);
 
   const [editName, setEditName] = useState('');
   const [editCountry, setEditCountry] = useState('');
@@ -55,14 +57,16 @@ export function PolygonsScreen() {
   const [editCity, setEditCity] = useState('');
   const [editAddress, setEditAddress] = useState('');
   const [editType, setEditType] = useState<PolygonType>('mixed');
+  const [editClubId, setEditClubId] = useState<string | null>(null);
 
   const loadPolygons = useCallback(async () => {
-    const { data, error } = await supabase
-      .from('polygons')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) setError(error.message);
-    setPolygons(data ?? []);
+    const [polygonsRes, clubsRes] = await Promise.all([
+      supabase.from('polygons').select('*').order('created_at', { ascending: false }),
+      supabase.from('clubs').select('*').order('name', { ascending: true }),
+    ]);
+    if (polygonsRes.error) setError(polygonsRes.error.message);
+    setPolygons(polygonsRes.data ?? []);
+    setClubs(clubsRes.data ?? []);
     setLoading(false);
   }, []);
 
@@ -96,6 +100,7 @@ export function PolygonsScreen() {
       city: city.trim() || null,
       address: address.trim() || null,
       type,
+      club_id: clubId,
       created_by: userData.user?.id,
     });
     if (error) {
@@ -108,6 +113,7 @@ export function PolygonsScreen() {
     setCity('');
     setAddress('');
     setType('mixed');
+    setClubId(null);
     loadPolygons();
   };
 
@@ -118,6 +124,7 @@ export function PolygonsScreen() {
     setEditCity(polygon.city ?? '');
     setEditAddress(polygon.address ?? '');
     setEditType(polygon.type);
+    setEditClubId(polygon.club_id);
     setEditing(true);
   };
 
@@ -131,6 +138,7 @@ export function PolygonsScreen() {
       city: editCity.trim() || null,
       address: editAddress.trim() || null,
       type: editType,
+      club_id: editClubId,
     };
     const { error } = await supabase.from('polygons').update(updates).eq('id', selected.id);
     if (error) {
@@ -262,6 +270,14 @@ export function PolygonsScreen() {
               ))}
             </View>
 
+            <Text style={styles.label}>Клуб</Text>
+            <View style={styles.chips}>
+              <Chip label="—" selected={!editClubId} onPress={() => setEditClubId(null)} />
+              {clubs.map((c) => (
+                <Chip key={c.id} label={c.name} selected={editClubId === c.id} onPress={() => setEditClubId(c.id)} />
+              ))}
+            </View>
+
             <View style={styles.row}>
               <Button title="Сохранить" onPress={saveEdit} style={styles.flexButton} />
               <Button title="Отмена" variant="secondary" onPress={() => setEditing(false)} style={styles.flexButton} />
@@ -272,6 +288,9 @@ export function PolygonsScreen() {
             <Text style={styles.title}>{selected.name}</Text>
             <Text style={styles.subtitle}>{locationLine(selected)}</Text>
             <Text style={styles.subtitle}>Тип: {TYPE_LABEL[selected.type]}</Text>
+            <Text style={styles.subtitle}>
+              Клуб: {clubs.find((c) => c.id === selected.club_id)?.name ?? '— не указан'}
+            </Text>
             <Pressable onPress={() => startEditing(selected)}>
               <Text style={styles.editLink}>Редактировать</Text>
             </Pressable>
@@ -364,6 +383,14 @@ export function PolygonsScreen() {
       <View style={styles.chips}>
         {TYPES.map((t) => (
           <Chip key={t} label={TYPE_LABEL[t]} selected={type === t} onPress={() => setType(t)} />
+        ))}
+      </View>
+
+      <Text style={styles.label}>Клуб</Text>
+      <View style={styles.chips}>
+        <Chip label="—" selected={!clubId} onPress={() => setClubId(null)} />
+        {clubs.map((c) => (
+          <Chip key={c.id} label={c.name} selected={clubId === c.id} onPress={() => setClubId(c.id)} />
         ))}
       </View>
 

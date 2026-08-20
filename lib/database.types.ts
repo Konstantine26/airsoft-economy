@@ -78,7 +78,23 @@ export type Project = {
   default_game_type: GameType | null;
   is_closed: boolean;
   archived_at: string | null;
+  club_id: string | null;
   created_by: string | null;
+  created_at: string;
+};
+
+export type Club = {
+  id: string;
+  name: string;
+  description: string | null;
+  created_by: string | null;
+  created_at: string;
+};
+
+export type ClubAdmin = {
+  id: string;
+  club_id: string;
+  profile_id: string;
   created_at: string;
 };
 
@@ -120,6 +136,7 @@ export type Polygon = {
   city: string | null;
   address: string | null;
   type: PolygonType;
+  club_id: string | null;
   created_by: string | null;
   created_at: string;
 };
@@ -375,6 +392,44 @@ export type Database = {
             referencedRelation: 'profiles';
             referencedColumns: ['id'];
           },
+          {
+            foreignKeyName: 'projects_club_id_fkey';
+            columns: ['club_id'];
+            referencedRelation: 'clubs';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      clubs: {
+        Row: Club;
+        Insert: Partial<Club> & { name: string };
+        Update: Partial<Club>;
+        Relationships: [
+          {
+            foreignKeyName: 'clubs_created_by_fkey';
+            columns: ['created_by'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      club_admins: {
+        Row: ClubAdmin;
+        Insert: Partial<ClubAdmin> & { club_id: string; profile_id: string };
+        Update: Partial<ClubAdmin>;
+        Relationships: [
+          {
+            foreignKeyName: 'club_admins_club_id_fkey';
+            columns: ['club_id'];
+            referencedRelation: 'clubs';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'club_admins_profile_id_fkey';
+            columns: ['profile_id'];
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
         ];
       };
       project_organizers: {
@@ -487,6 +542,12 @@ export type Database = {
             foreignKeyName: 'polygons_created_by_fkey';
             columns: ['created_by'];
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'polygons_club_id_fkey';
+            columns: ['club_id'];
+            referencedRelation: 'clubs';
             referencedColumns: ['id'];
           },
         ];
