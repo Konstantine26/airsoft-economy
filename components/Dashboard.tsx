@@ -14,6 +14,7 @@ import { SideCommanderScreen } from './SideCommanderScreen';
 import { PlayerHomeScreen } from './PlayerHomeScreen';
 import { PlayerGamesScreen } from './PlayerGamesScreen';
 import { PlayerTeamScreen } from './PlayerTeamScreen';
+import { PlayerStatsScreen } from './PlayerStatsScreen';
 import { TeamsScreen } from './TeamsScreen';
 import { TraderScreen } from './TraderScreen';
 import { WalletScreen } from './WalletScreen';
@@ -27,7 +28,7 @@ import { hasSeenOnboarding, markOnboardingSeen } from '../lib/onboardingStorage'
 import { getActiveGame, setActiveGame as persistActiveGame, clearActiveGame as persistClearActiveGame, type ActiveGame } from '../lib/activeGameStorage';
 import type { Project } from '../lib/database.types';
 
-type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
+type PlayerTab = 'home' | 'games' | 'team' | 'wallet' | 'stats';
 type OrganizerTab = 'overview' | 'games' | 'economy';
 
 export function Dashboard() {
@@ -257,6 +258,7 @@ export function Dashboard() {
               <Chip label="Игры" selected={playerTab === 'games'} onPress={() => setPlayerTab('games')} />
               <Chip label="Моя команда" selected={playerTab === 'team'} onPress={() => setPlayerTab('team')} />
               <Chip label="Деньги" selected={playerTab === 'wallet'} onPress={() => setPlayerTab('wallet')} />
+              <Chip label="Статистика" selected={playerTab === 'stats'} onPress={() => setPlayerTab('stats')} />
             </View>
             {playerTab === 'home' ? (
               <PlayerHomeScreen
@@ -280,6 +282,9 @@ export function Dashboard() {
               <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
             ) : null}
             {playerTab === 'wallet' ? <WalletScreen projectId={economyProjectId} /> : null}
+            {playerTab === 'stats' ? (
+              <PlayerStatsScreen activeProjectId={activeProjectId} economyProjectId={economyProjectId} />
+            ) : null}
           </>
         ) : null}
 

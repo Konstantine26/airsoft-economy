@@ -19,7 +19,7 @@ type JournalRow = PersonalTransaction & {
   to_team: { name: string } | null;
 };
 
-const KIND_LABEL: Record<PersonalTransactionKind, string> = {
+export const KIND_LABEL: Record<PersonalTransactionKind, string> = {
   deposit: 'Пополнение',
   team_to_participant: 'От команды',
   participant_to_team: 'В команду',
