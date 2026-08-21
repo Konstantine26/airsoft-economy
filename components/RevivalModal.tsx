@@ -2,7 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../contexts/AuthContext';
 import { decodeParticipantCode } from '../lib/participantCode';
 import { formatMoney } from '../lib/format';
 import { Sheet } from './Sheet';
@@ -14,7 +13,6 @@ import { colors, font, radii, spacing } from '../lib/theme';
 type Mode = 'search' | 'scan' | 'confirm';
 
 const REVIVAL_ERROR_TRANSLATIONS: [string, string][] = [
-  ['cannot revive yourself', 'Нельзя воскресить самого себя'],
   ['insufficient balance', 'Недостаточно средств для воскрешения'],
   ['revival cost is not configured', 'Стоимость воскрешения для этой стороны не задана'],
   ['paid revival is not enabled', 'Платное воскрешение выключено в этой игре'],
@@ -36,6 +34,7 @@ type ParticipantRow = {
   sideId: string;
   sideName: string;
   cost: number | null;
+  balance: number;
 };
 
 type Props = {
@@ -48,7 +47,6 @@ type Props = {
 };
 
 export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onSuccess }: Props) {
-  const { profile } = useAuth();
   const [mode, setMode] = useState<Mode>('search');
   const [query, setQuery] = useState('');
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
@@ -79,16 +77,13 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
     const teamSideMap = new Map<string, string>();
     for (const row of teamSidesRes.data ?? []) teamSideMap.set(row.team_id, row.side_id);
 
-    const rows: ParticipantRow[] = ((participantsRes.data as any[]) ?? [])
+    const baseRows = ((participantsRes.data as any[]) ?? [])
       .map((row) => ({ row, effectiveSideId: row.side_id ?? teamSideMap.get(row.team_id) ?? null }))
-      .filter(
-        ({ row, effectiveSideId }) =>
-          effectiveSideId && sideIds.includes(effectiveSideId) && row.profile_id !== profile?.id
-      )
+      .filter(({ effectiveSideId }) => effectiveSideId && sideIds.includes(effectiveSideId))
       .map(({ row, effectiveSideId }) => {
         const side = sideMap.get(effectiveSideId as string);
         return {
-          profileId: row.profile_id,
+          profileId: row.profile_id as string,
           participantNumber: row.profile?.participant_number ?? 0,
           fullName: row.profile?.full_name || '(без имени)',
           avatarUrl: row.profile?.avatar_url ?? null,
@@ -97,9 +92,22 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
           cost: side?.cost ?? null,
         };
       });
+
+    const balanceMap = new Map<string, number>();
+    const profileIds = baseRows.map((r) => r.profileId);
+    if (profileIds.length > 0) {
+      const { data: balancesData } = await supabase
+        .from('project_profile_balances')
+        .select('profile_id, balance')
+        .eq('project_id', projectId)
+        .in('profile_id', profileIds);
+      for (const b of balancesData ?? []) balanceMap.set(b.profile_id, b.balance);
+    }
+
+    const rows: ParticipantRow[] = baseRows.map((r) => ({ ...r, balance: balanceMap.get(r.profileId) ?? 0 }));
     setParticipants(rows);
     setLoading(false);
-  }, [gameId, sideIds, profile?.id]);
+  }, [gameId, sideIds, projectId]);
 
   useEffect(() => {
     if (!visible) return;
@@ -180,17 +188,23 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
             <Text style={styles.label}>Никого не нашлось в составе вашей стороны</Text>
           ) : (
             <View style={styles.list}>
-              {results.map((p) => (
-                <Pressable key={p.profileId} style={styles.resultRow} onPress={() => selectTarget(p)}>
-                  <View style={styles.resultIdentity}>
-                    <Avatar uri={p.avatarUrl} name={p.fullName} size={24} />
-                    <Text style={styles.resultName}>
-                      {p.fullName} · №{p.participantNumber}
-                    </Text>
-                  </View>
-                  <Text style={styles.resultSide}>{p.sideName}</Text>
-                </Pressable>
-              ))}
+              {results.map((p) => {
+                const low = p.cost != null && p.cost > 0 && p.balance < p.cost;
+                return (
+                  <Pressable key={p.profileId} style={styles.resultRow} onPress={() => selectTarget(p)}>
+                    <View style={styles.resultIdentity}>
+                      <Avatar uri={p.avatarUrl} name={p.fullName} size={24} />
+                      <Text style={styles.resultName}>
+                        {p.fullName} · №{p.participantNumber}
+                      </Text>
+                    </View>
+                    <View style={styles.resultMeta}>
+                      <Text style={styles.resultSide}>{p.sideName}</Text>
+                      <Text style={[styles.resultBalance, low && styles.balanceLow]}>{formatMoney(p.balance)}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
             </View>
           )}
           <Pressable onPress={onClose} style={styles.cancelLink}>
@@ -229,42 +243,53 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
       ) : null}
 
       {mode === 'confirm' && target ? (
-        <>
-          <View style={styles.confirmRow}>
-            <Avatar uri={target.avatarUrl} name={target.fullName} size={40} />
-            <View>
-              <Text style={styles.confirmName}>{target.fullName}</Text>
-              <Text style={styles.label}>
-                №{target.participantNumber} · {target.sideName}
+        (() => {
+          const noCost = target.cost === null || target.cost <= 0;
+          const insufficientBalance = !noCost && target.balance < (target.cost as number);
+          return (
+            <>
+              <View style={styles.confirmRow}>
+                <Avatar uri={target.avatarUrl} name={target.fullName} size={40} />
+                <View>
+                  <Text style={styles.confirmName}>{target.fullName}</Text>
+                  <Text style={styles.label}>
+                    №{target.participantNumber} · {target.sideName}
+                  </Text>
+                </View>
+              </View>
+              <Text style={[styles.balanceText, insufficientBalance && styles.balanceLow]}>
+                Баланс игрока: {formatMoney(target.balance)}
               </Text>
-            </View>
-          </View>
-          {target.cost === null || target.cost <= 0 ? (
-            <Text style={styles.error}>Организатор ещё не задал стоимость воскрешения для этой стороны</Text>
-          ) : (
-            <Text style={styles.costText}>Стоимость воскрешения: {formatMoney(target.cost)}</Text>
-          )}
-          {error ? <Text style={styles.error}>{error}</Text> : null}
-          <View style={styles.actions}>
-            <Button
-              title="Назад"
-              variant="secondary"
-              onPress={() => {
-                setMode('search');
-                setTarget(null);
-                setError(null);
-              }}
-              style={styles.actionButton}
-            />
-            <Button
-              title="Воскресить"
-              onPress={submit}
-              loading={submitting}
-              disabled={!target.cost || target.cost <= 0}
-              style={styles.actionButton}
-            />
-          </View>
-        </>
+              {noCost ? (
+                <Text style={styles.error}>Организатор ещё не задал стоимость воскрешения для этой стороны</Text>
+              ) : (
+                <Text style={[styles.costText, insufficientBalance && styles.balanceLow]}>
+                  Стоимость воскрешения: {formatMoney(target.cost as number)}
+                </Text>
+              )}
+              {error ? <Text style={styles.error}>{error}</Text> : null}
+              <View style={styles.actions}>
+                <Button
+                  title="Назад"
+                  variant="secondary"
+                  onPress={() => {
+                    setMode('search');
+                    setTarget(null);
+                    setError(null);
+                  }}
+                  style={styles.actionButton}
+                />
+                <Button
+                  title="Воскресить"
+                  onPress={submit}
+                  loading={submitting}
+                  disabled={noCost || insufficientBalance}
+                  style={styles.actionButton}
+                />
+              </View>
+            </>
+          );
+        })()
       ) : null}
     </Sheet>
   );
@@ -316,10 +341,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.text,
   },
+  resultMeta: {
+    alignItems: 'flex-end',
+  },
   resultSide: {
     fontFamily: font.body,
     fontSize: 11.5,
     color: colors.textMuted,
+  },
+  resultBalance: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 12.5,
+    color: colors.text,
+    marginTop: 2,
+  },
+  balanceText: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 13,
+    color: colors.text,
+    marginBottom: 4,
+  },
+  balanceLow: {
+    color: colors.danger,
   },
   cameraBox: {
     height: 220,
