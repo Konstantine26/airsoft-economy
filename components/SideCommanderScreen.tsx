@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
-import type { GameSide } from '../lib/database.types';
+import type { CommandedSide } from '../hooks/useCapabilities';
 import { Avatar } from './Avatar';
+import { Button } from './Button';
 import { Card } from './Card';
 import { Chip } from './Chip';
+import { RevivalModal } from './RevivalModal';
 import { TasksSection } from './TasksSection';
 import { colors, font, spacing } from '../lib/theme';
 
@@ -16,10 +18,12 @@ type TeamWithRoster = {
   participants: ParticipantEntry[];
 };
 
-export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
-  const [activeSide, setActiveSide] = useState<GameSide | null>(sides[0] ?? null);
+export function SideCommanderScreen({ sides }: { sides: CommandedSide[] }) {
+  const [activeSide, setActiveSide] = useState<CommandedSide | null>(sides[0] ?? null);
   const [activeTab, setActiveTab] = useState<'side' | 'teams' | 'tasks'>('side');
   const [gameLabel, setGameLabel] = useState('');
+  const [revivalEnabled, setRevivalEnabled] = useState(false);
+  const [revivalModalOpen, setRevivalModalOpen] = useState(false);
   const [teams, setTeams] = useState<TeamWithRoster[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +32,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
     setActiveSide((prev) => (prev && sides.some((s) => s.id === prev.id) ? prev : (sides[0] ?? null)));
   }, [sides]);
 
-  const load = useCallback(async (side: GameSide) => {
+  const load = useCallback(async (side: CommandedSide) => {
     setLoading(true);
     setError(null);
 
@@ -51,6 +55,7 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
     if (gameRes.error) setError(gameRes.error.message);
     const game: any = gameRes.data;
     setGameLabel(game ? `${game.project?.name ?? ''} · ${game.name} · ${game.polygon?.name ?? '—'}` : '');
+    setRevivalEnabled(!!game?.revival_enabled);
 
     const teamSideMap = new Map<string, string>();
     const teamNameMap = new Map<string, string>();
@@ -120,6 +125,24 @@ export function SideCommanderScreen({ sides }: { sides: GameSide[] }) {
         <Chip label="Команды" selected={activeTab === 'teams'} onPress={() => setActiveTab('teams')} />
         <Chip label="Задания" selected={activeTab === 'tasks'} onPress={() => setActiveTab('tasks')} />
       </View>
+
+      {revivalEnabled && activeSide.project_id ? (
+        <>
+          <Button
+            title="Возродить участника"
+            onPress={() => setRevivalModalOpen(true)}
+            style={styles.revivalButton}
+          />
+          <RevivalModal
+            visible={revivalModalOpen}
+            projectId={activeSide.project_id}
+            gameId={activeSide.game_id}
+            sideIds={[activeSide.id]}
+            onClose={() => setRevivalModalOpen(false)}
+            onSuccess={() => setRevivalModalOpen(false)}
+          />
+        </>
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -265,6 +288,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
+    marginBottom: spacing.md,
+  },
+  revivalButton: {
     marginBottom: spacing.md,
   },
   teamsList: {

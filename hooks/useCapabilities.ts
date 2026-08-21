@@ -64,6 +64,7 @@ export function useCapabilities(): Capabilities {
         game_id: row.game_id,
         name: row.name,
         commander_id: row.commander_id,
+        revival_cost: row.revival_cost,
         project_id: row.game?.project_id ?? null,
       }))
     );

@@ -4,8 +4,10 @@ import { supabase } from '../lib/supabase';
 import type { TraderGame } from '../hooks/useCapabilities';
 import type { Game, Polygon, Project } from '../lib/database.types';
 import { Card } from './Card';
+import { Button } from './Button';
 import { TasksSection } from './TasksSection';
 import { TraderChargeSection } from './TraderChargeSection';
+import { RevivalModal } from './RevivalModal';
 import { colors, font, spacing } from '../lib/theme';
 
 type GameWithRelations = Game & { project: Project | null; polygon: Polygon | null };
@@ -19,6 +21,7 @@ export function TraderScreen({ traderGames, activeProjectId }: Props) {
   const [loading, setLoading] = useState(true);
   const [games, setGames] = useState<GameWithRelations[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [revivalModalOpen, setRevivalModalOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -61,7 +64,23 @@ export function TraderScreen({ traderGames, activeProjectId }: Props) {
         </Pressable>
         <Text style={styles.title}>{game?.name}</Text>
         <TraderChargeSection gameId={selectedGameId} projectId={game?.project_id ?? null} sideIds={sideIds} />
+        {game?.revival_enabled && game.project_id ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Воскрешение</Text>
+            <Button title="Возродить участника" onPress={() => setRevivalModalOpen(true)} />
+          </View>
+        ) : null}
         <TasksSection gameId={selectedGameId} traderSideIds={sideIds} />
+        {game?.revival_enabled && game.project_id ? (
+          <RevivalModal
+            visible={revivalModalOpen}
+            projectId={game.project_id}
+            gameId={selectedGameId}
+            sideIds={sideIds}
+            onClose={() => setRevivalModalOpen(false)}
+            onSuccess={() => setRevivalModalOpen(false)}
+          />
+        ) : null}
       </ScrollView>
     );
   }
@@ -117,6 +136,15 @@ const styles = StyleSheet.create({
   },
   cardsList: {
     gap: 10,
+  },
+  section: {
+    marginTop: spacing.lg,
+  },
+  sectionTitle: {
+    fontFamily: font.heading,
+    fontSize: 16,
+    color: colors.text,
+    marginBottom: spacing.sm + 2,
   },
   cardTitle: {
     fontFamily: font.bodyBold,

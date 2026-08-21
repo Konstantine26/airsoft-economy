@@ -169,6 +169,7 @@ export type Game = {
   price: number | null;
   rules: string | null;
   status: GameStatus;
+  revival_enabled: boolean;
   created_by: string | null;
   created_at: string;
 };
@@ -197,6 +198,7 @@ export type GameSide = {
   game_id: string;
   name: string;
   commander_id: string | null;
+  revival_cost: number | null;
 };
 
 export type GameTeamSide = {
@@ -225,7 +227,8 @@ export type PersonalTransactionKind =
   | 'participant_to_team'
   | 'participant_to_participant'
   | 'task_reward'
-  | 'trader_charge';
+  | 'trader_charge'
+  | 'revival_charge';
 
 export type PersonalTransaction = {
   id: string;
@@ -1032,6 +1035,15 @@ export type Database = {
           p_game_id: string;
           p_from_team_id: string;
           p_amount: number;
+          p_note?: string | null;
+        };
+        Returns: PersonalTransaction;
+      };
+      revive_participant: {
+        Args: {
+          p_project_id: string;
+          p_game_id: string;
+          p_from_profile_id: string;
           p_note?: string | null;
         };
         Returns: PersonalTransaction;

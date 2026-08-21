@@ -42,4 +42,5 @@ export const EXPECTED_MIGRATIONS: string[] = [
   '033_sync_commander_membership.sql',
   '034_game_announcements.sql',
   '035_game_creation_fields.sql',
+  '036_paid_revival.sql',
 ];

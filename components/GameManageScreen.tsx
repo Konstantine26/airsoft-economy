@@ -72,6 +72,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [sides, setSides] = useState<GameSide[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [newSideName, setNewSideName] = useState('');
+  const [sideCostInputs, setSideCostInputs] = useState<Record<string, string>>({});
 
   const [traders, setTraders] = useState<TraderRow[]>([]);
   const [newTraderProfileId, setNewTraderProfileId] = useState<string | null>(null);
@@ -311,6 +312,23 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       return;
     }
     setSides((prev) => prev.map((s) => (s.id === sideId ? { ...s, commander_id: profileId } : s)));
+  };
+
+  const saveSideRevivalCost = async (sideId: string, rawValue: string) => {
+    setError(null);
+    const trimmed = rawValue.trim();
+    const cost = trimmed ? Number(trimmed.replace(',', '.')) : null;
+    if (cost !== null && (!Number.isFinite(cost) || cost < 0)) {
+      setError('Стоимость воскрешения должна быть числом не меньше нуля');
+      return;
+    }
+    const { error } = await supabase.from('game_sides').update({ revival_cost: cost }).eq('id', sideId);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setSides((prev) => prev.map((s) => (s.id === sideId ? { ...s, revival_cost: cost } : s)));
+    setSideCostInputs((prev) => ({ ...prev, [sideId]: cost !== null ? String(cost) : '' }));
   };
 
   const confirmParticipant = async (row: ParticipantRow) => {
@@ -584,6 +602,30 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
                 />
               ))}
             </View>
+            {game.revival_enabled ? (
+              <>
+                <Text style={styles.label}>Стоимость воскрешения, ₽</Text>
+                <View style={styles.row}>
+                  <TextField
+                    style={styles.flexButton}
+                    placeholder="Не задана"
+                    keyboardType="decimal-pad"
+                    value={sideCostInputs[side.id] ?? (side.revival_cost != null ? String(side.revival_cost) : '')}
+                    onChangeText={(text) => setSideCostInputs((prev) => ({ ...prev, [side.id]: text }))}
+                  />
+                  <Button
+                    title="Сохранить"
+                    variant="secondary"
+                    onPress={() =>
+                      saveSideRevivalCost(
+                        side.id,
+                        sideCostInputs[side.id] ?? (side.revival_cost != null ? String(side.revival_cost) : '')
+                      )
+                    }
+                  />
+                </View>
+              </>
+            ) : null}
           </Card>
         ))}
       </View>

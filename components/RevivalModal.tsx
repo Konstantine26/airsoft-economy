@@ -1,0 +1,357 @@
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { CameraView, useCameraPermissions } from 'expo-camera';
+import { supabase } from '../lib/supabase';
+import { decodeParticipantCode } from '../lib/participantCode';
+import { formatMoney } from '../lib/format';
+import { Sheet } from './Sheet';
+import { Button } from './Button';
+import { TextField } from './TextField';
+import { Avatar } from './Avatar';
+import { colors, font, radii, spacing } from '../lib/theme';
+
+type Mode = 'search' | 'scan' | 'confirm';
+
+type ParticipantRow = {
+  profileId: string;
+  participantNumber: number;
+  fullName: string;
+  avatarUrl: string | null;
+  sideId: string;
+  sideName: string;
+  cost: number | null;
+};
+
+type Props = {
+  visible: boolean;
+  projectId: string;
+  gameId: string;
+  sideIds: string[];
+  onClose: () => void;
+  onSuccess: () => void;
+};
+
+export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onSuccess }: Props) {
+  const [mode, setMode] = useState<Mode>('search');
+  const [query, setQuery] = useState('');
+  const [participants, setParticipants] = useState<ParticipantRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [target, setTarget] = useState<ParticipantRow | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [scanLocked, setScanLocked] = useState(false);
+  const [permission, requestPermission] = useCameraPermissions();
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const [sidesRes, teamSidesRes, participantsRes] = await Promise.all([
+      supabase.from('game_sides').select('id, name, revival_cost').eq('game_id', gameId),
+      supabase.from('game_team_sides').select('team_id, side_id').eq('game_id', gameId),
+      supabase
+        .from('game_participants')
+        .select('profile_id, team_id, side_id, status, profile:profiles(full_name, avatar_url, participant_number)')
+        .eq('game_id', gameId)
+        .eq('status', 'confirmed'),
+    ]);
+
+    const sideMap = new Map<string, { name: string; cost: number | null }>();
+    for (const s of sidesRes.data ?? []) {
+      if (sideIds.includes(s.id)) sideMap.set(s.id, { name: s.name, cost: s.revival_cost });
+    }
+
+    const teamSideMap = new Map<string, string>();
+    for (const row of teamSidesRes.data ?? []) teamSideMap.set(row.team_id, row.side_id);
+
+    const rows: ParticipantRow[] = ((participantsRes.data as any[]) ?? [])
+      .map((row) => ({ row, effectiveSideId: row.side_id ?? teamSideMap.get(row.team_id) ?? null }))
+      .filter(({ effectiveSideId }) => effectiveSideId && sideIds.includes(effectiveSideId))
+      .map(({ row, effectiveSideId }) => {
+        const side = sideMap.get(effectiveSideId as string);
+        return {
+          profileId: row.profile_id,
+          participantNumber: row.profile?.participant_number ?? 0,
+          fullName: row.profile?.full_name || '(без имени)',
+          avatarUrl: row.profile?.avatar_url ?? null,
+          sideId: effectiveSideId as string,
+          sideName: side?.name ?? '',
+          cost: side?.cost ?? null,
+        };
+      });
+    setParticipants(rows);
+    setLoading(false);
+  }, [gameId, sideIds]);
+
+  useEffect(() => {
+    if (!visible) return;
+    setMode('search');
+    setQuery('');
+    setTarget(null);
+    setError(null);
+    setScanLocked(false);
+    load();
+  }, [visible, load]);
+
+  const selectTarget = (row: ParticipantRow) => {
+    setError(null);
+    setTarget(row);
+    setMode('confirm');
+  };
+
+  const trimmedQuery = query.trim();
+  const results = !trimmedQuery
+    ? []
+    : participants.filter((p) =>
+        /^\d+$/.test(trimmedQuery)
+          ? String(p.participantNumber).includes(trimmedQuery)
+          : p.fullName.toLowerCase().includes(trimmedQuery.toLowerCase())
+      );
+
+  const handleBarcodeScanned = (result: { data: string }) => {
+    if (scanLocked) return;
+    const n = decodeParticipantCode(result.data);
+    if (n === null) return;
+    setScanLocked(true);
+    const found = participants.find((p) => p.participantNumber === n);
+    if (!found) {
+      setError('Участник с таким QR-кодом не найден в составе вашей стороны');
+      setScanLocked(false);
+      return;
+    }
+    selectTarget(found);
+  };
+
+  const submit = async () => {
+    if (!target) return;
+    setSubmitting(true);
+    setError(null);
+    const { error: rpcError } = await supabase.rpc('revive_participant', {
+      p_project_id: projectId,
+      p_game_id: gameId,
+      p_from_profile_id: target.profileId,
+    });
+    setSubmitting(false);
+    if (rpcError) {
+      setError(
+        rpcError.message.includes('insufficient balance') ? 'Недостаточно средств для воскрешения' : rpcError.message
+      );
+      return;
+    }
+    onSuccess();
+    onClose();
+  };
+
+  return (
+    <Sheet visible={visible} onRequestClose={onClose}>
+      <Text style={styles.title}>Возродить участника</Text>
+
+      {mode === 'search' ? (
+        <>
+          <TextField
+            style={styles.input}
+            placeholder="Номер участника или позывной"
+            value={query}
+            onChangeText={setQuery}
+          />
+          <Button title="Сканировать QR-код" variant="secondary" onPress={() => setMode('scan')} style={styles.gap} />
+
+          {loading ? (
+            <ActivityIndicator color={colors.accent} style={styles.centerGap} />
+          ) : !trimmedQuery ? (
+            <Text style={styles.label}>Введите номер или позывной, чтобы найти игрока</Text>
+          ) : results.length === 0 ? (
+            <Text style={styles.label}>Никого не нашлось в составе вашей стороны</Text>
+          ) : (
+            <View style={styles.list}>
+              {results.map((p) => (
+                <Pressable key={p.profileId} style={styles.resultRow} onPress={() => selectTarget(p)}>
+                  <View style={styles.resultIdentity}>
+                    <Avatar uri={p.avatarUrl} name={p.fullName} size={24} />
+                    <Text style={styles.resultName}>
+                      {p.fullName} · №{p.participantNumber}
+                    </Text>
+                  </View>
+                  <Text style={styles.resultSide}>{p.sideName}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+          <Pressable onPress={onClose} style={styles.cancelLink}>
+            <Text style={styles.cancelLinkText}>Отмена</Text>
+          </Pressable>
+        </>
+      ) : null}
+
+      {mode === 'scan' ? (
+        <>
+          {!permission?.granted ? (
+            <>
+              <Text style={styles.label}>Нужен доступ к камере</Text>
+              <Button title="Разрешить" onPress={requestPermission} style={styles.permissionButton} />
+            </>
+          ) : (
+            <View style={styles.cameraBox}>
+              <CameraView
+                style={styles.camera}
+                barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                onBarcodeScanned={handleBarcodeScanned}
+              />
+            </View>
+          )}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <Button
+            title="Назад"
+            variant="secondary"
+            onPress={() => {
+              setMode('search');
+              setError(null);
+              setScanLocked(false);
+            }}
+          />
+        </>
+      ) : null}
+
+      {mode === 'confirm' && target ? (
+        <>
+          <View style={styles.confirmRow}>
+            <Avatar uri={target.avatarUrl} name={target.fullName} size={40} />
+            <View>
+              <Text style={styles.confirmName}>{target.fullName}</Text>
+              <Text style={styles.label}>
+                №{target.participantNumber} · {target.sideName}
+              </Text>
+            </View>
+          </View>
+          {target.cost === null || target.cost <= 0 ? (
+            <Text style={styles.error}>Организатор ещё не задал стоимость воскрешения для этой стороны</Text>
+          ) : (
+            <Text style={styles.costText}>Стоимость воскрешения: {formatMoney(target.cost)}</Text>
+          )}
+          {error ? <Text style={styles.error}>{error}</Text> : null}
+          <View style={styles.actions}>
+            <Button
+              title="Назад"
+              variant="secondary"
+              onPress={() => {
+                setMode('search');
+                setTarget(null);
+                setError(null);
+              }}
+              style={styles.actionButton}
+            />
+            <Button
+              title="Воскресить"
+              onPress={submit}
+              loading={submitting}
+              disabled={!target.cost || target.cost <= 0}
+              style={styles.actionButton}
+            />
+          </View>
+        </>
+      ) : null}
+    </Sheet>
+  );
+}
+
+const styles = StyleSheet.create({
+  title: {
+    fontFamily: font.heading,
+    fontSize: 18,
+    color: colors.text,
+    marginBottom: spacing.md + 2,
+  },
+  label: {
+    fontFamily: font.body,
+    fontSize: 12.5,
+    color: colors.textMuted,
+    marginBottom: spacing.md,
+  },
+  input: {
+    marginBottom: spacing.sm + 2,
+  },
+  gap: {
+    marginBottom: spacing.md,
+  },
+  centerGap: {
+    marginVertical: spacing.md,
+  },
+  list: {
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  resultRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.md,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
+  resultIdentity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  resultName: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 13,
+    color: colors.text,
+  },
+  resultSide: {
+    fontFamily: font.body,
+    fontSize: 11.5,
+    color: colors.textMuted,
+  },
+  cameraBox: {
+    height: 220,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: spacing.md,
+    backgroundColor: colors.cardSoft,
+  },
+  camera: {
+    flex: 1,
+  },
+  confirmRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: spacing.md,
+  },
+  confirmName: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 15,
+    color: colors.text,
+  },
+  costText: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 14,
+    color: colors.text,
+    marginBottom: spacing.md,
+  },
+  error: {
+    fontFamily: font.body,
+    color: colors.danger,
+    marginBottom: spacing.md,
+  },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  actionButton: {
+    flex: 1,
+  },
+  cancelLink: {
+    marginTop: 4,
+  },
+  cancelLinkText: {
+    fontFamily: font.body,
+    textAlign: 'center',
+    fontSize: 13.5,
+    color: colors.textMuted,
+  },
+  permissionButton: {
+    marginBottom: spacing.md,
+  },
+});

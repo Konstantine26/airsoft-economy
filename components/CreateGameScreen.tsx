@@ -63,6 +63,7 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
   const [durationHours, setDurationHours] = useState(() => durationHoursOf(editGame));
   const [isPaid, setIsPaid] = useState(editGame?.is_paid ?? false);
   const [price, setPrice] = useState(editGame?.price != null ? String(editGame.price) : '');
+  const [revivalEnabled, setRevivalEnabled] = useState(editGame?.revival_enabled ?? false);
   const [description, setDescription] = useState(editGame?.description ?? '');
   const [rules, setRules] = useState(editGame?.rules ?? '');
   const [cover, setCover] = useState<{ uri: string; mimeType: string | null } | null>(null);
@@ -232,6 +233,7 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
         price: isPaid ? priceValue : null,
         rules: rules.trim() || null,
         status,
+        revival_enabled: revivalEnabled,
       };
 
       let gameId: string;
@@ -418,6 +420,32 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
               <Text style={styles.freeText}>Бесплатно</Text>
             </View>
           )}
+        </Card>
+
+        <Text style={styles.sectionTitle}>Платное воскрешение</Text>
+        <Card style={styles.card}>
+          <View style={styles.toggleRow}>
+            <View style={styles.iconWrap}>
+              <MaterialCommunityIcons name="heart-pulse" size={18} color={colors.textMuted} />
+            </View>
+            <View style={styles.toggleTextWrap}>
+              <Text style={styles.toggleLabel}>Возрождение за деньги</Text>
+              <Text style={styles.toggleHint}>
+                Включите, если убитый игрок платит торговцу или командиру стороны за возрождение
+              </Text>
+            </View>
+            <Switch
+              value={revivalEnabled}
+              onValueChange={setRevivalEnabled}
+              trackColor={{ false: colors.cardBorder, true: colors.accentSoftBorder }}
+              thumbColor={revivalEnabled ? colors.accent : colors.textDim}
+            />
+          </View>
+          {revivalEnabled ? (
+            <Text style={[styles.gap, styles.freeText]}>
+              Стоимость для каждой стороны задаётся отдельно — во вкладке «Стороны» после сохранения игры.
+            </Text>
+          ) : null}
         </Card>
 
         <Text style={styles.sectionTitle}>Описание события</Text>
