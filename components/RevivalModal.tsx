@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../contexts/AuthContext';
 import { decodeParticipantCode } from '../lib/participantCode';
 import { formatMoney } from '../lib/format';
 import { Sheet } from './Sheet';
@@ -11,6 +12,21 @@ import { Avatar } from './Avatar';
 import { colors, font, radii, spacing } from '../lib/theme';
 
 type Mode = 'search' | 'scan' | 'confirm';
+
+const REVIVAL_ERROR_TRANSLATIONS: [string, string][] = [
+  ['cannot revive yourself', 'Нельзя воскресить самого себя'],
+  ['insufficient balance', 'Недостаточно средств для воскрешения'],
+  ['revival cost is not configured', 'Стоимость воскрешения для этой стороны не задана'],
+  ['paid revival is not enabled', 'Платное воскрешение выключено в этой игре'],
+  ['only a trader or commander', 'Вы не назначены торговцем или командующим стороны этого участника'],
+  ['economy is not enabled', 'Экономика выключена в этом проекте'],
+  ['this project is archived', 'Проект архивирован'],
+];
+
+function translateRevivalError(message: string): string {
+  const found = REVIVAL_ERROR_TRANSLATIONS.find(([needle]) => message.includes(needle));
+  return found ? found[1] : message;
+}
 
 type ParticipantRow = {
   profileId: string;
@@ -32,6 +48,7 @@ type Props = {
 };
 
 export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onSuccess }: Props) {
+  const { profile } = useAuth();
   const [mode, setMode] = useState<Mode>('search');
   const [query, setQuery] = useState('');
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
@@ -64,7 +81,10 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
 
     const rows: ParticipantRow[] = ((participantsRes.data as any[]) ?? [])
       .map((row) => ({ row, effectiveSideId: row.side_id ?? teamSideMap.get(row.team_id) ?? null }))
-      .filter(({ effectiveSideId }) => effectiveSideId && sideIds.includes(effectiveSideId))
+      .filter(
+        ({ row, effectiveSideId }) =>
+          effectiveSideId && sideIds.includes(effectiveSideId) && row.profile_id !== profile?.id
+      )
       .map(({ row, effectiveSideId }) => {
         const side = sideMap.get(effectiveSideId as string);
         return {
@@ -79,7 +99,7 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
       });
     setParticipants(rows);
     setLoading(false);
-  }, [gameId, sideIds]);
+  }, [gameId, sideIds, profile?.id]);
 
   useEffect(() => {
     if (!visible) return;
@@ -131,9 +151,7 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
     });
     setSubmitting(false);
     if (rpcError) {
-      setError(
-        rpcError.message.includes('insufficient balance') ? 'Недостаточно средств для воскрешения' : rpcError.message
-      );
+      setError(translateRevivalError(rpcError.message));
       return;
     }
     onSuccess();
