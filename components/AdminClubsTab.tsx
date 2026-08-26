@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Club, Profile } from '../lib/database.types';
+import { useSavePulse } from '../hooks/useSavePulse';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
@@ -27,6 +28,7 @@ export function AdminClubsTab() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
   const [deleteCounts, setDeleteCounts] = useState<{ projects: number; polygons: number } | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [editSavePulse, triggerEditSave] = useSavePulse();
 
   const loadClubs = useCallback(async () => {
     setLoading(true);
@@ -92,6 +94,8 @@ export function AdminClubsTab() {
     const updated = { ...selectedClub, ...updates };
     setSelectedClub(updated);
     setClubs((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    triggerEditSave();
+    await new Promise((resolve) => setTimeout(resolve, 700));
     setEditing(false);
   };
 
@@ -232,7 +236,7 @@ export function AdminClubsTab() {
             <TextField style={styles.input} label="Название" value={editName} onChangeText={setEditName} />
             <TextField style={styles.input} label="Описание" value={editDescription} onChangeText={setEditDescription} />
             <View style={styles.row}>
-              <Button title="Сохранить" onPress={saveEdit} style={styles.flexButton} />
+              <Button title="Сохранить" onPress={saveEdit} successPulse={editSavePulse} style={styles.flexButton} />
               <Button title="Отмена" variant="secondary" onPress={() => setEditing(false)} style={styles.flexButton} />
             </View>
           </>

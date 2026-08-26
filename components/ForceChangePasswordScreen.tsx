@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSavePulse } from '../hooks/useSavePulse';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { colors, font, spacing } from '../lib/theme';
@@ -12,6 +13,7 @@ export function ForceChangePasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [savePulse, triggerSave] = useSavePulse();
 
   const handleSubmit = async () => {
     setError(null);
@@ -46,8 +48,10 @@ export function ForceChangePasswordScreen() {
       }
     }
 
-    await refreshProfile();
     setSubmitting(false);
+    triggerSave();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await refreshProfile();
   };
 
   return (
@@ -78,7 +82,13 @@ export function ForceChangePasswordScreen() {
         error={error}
       />
 
-      <Button title="Сохранить" onPress={handleSubmit} loading={submitting} style={styles.submitButton} />
+      <Button
+        title="Сохранить"
+        onPress={handleSubmit}
+        loading={submitting}
+        successPulse={savePulse}
+        style={styles.submitButton}
+      />
 
       <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
         <Text style={styles.switchText}>Выйти</Text>

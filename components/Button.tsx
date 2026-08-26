@@ -1,4 +1,6 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Animated, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { colors, font, radii } from '../lib/theme';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'success';
@@ -9,12 +11,37 @@ type Props = {
   variant?: Variant;
   disabled?: boolean;
   loading?: boolean;
+  // Increment this (e.g. via useSavePulse) right after a successful save to
+  // flash a green checkmark over the button. A number, not a boolean, so a
+  // second save in a row re-triggers the animation even if the first one
+  // hasn't finished fading out yet.
+  successPulse?: number;
   style?: StyleProp<ViewStyle>;
   accessibilityLabel?: string;
 };
 
-export function Button({ title, onPress, variant = 'primary', disabled, loading, style, accessibilityLabel }: Props) {
+export function Button({ title, onPress, variant = 'primary', disabled, loading, successPulse, style, accessibilityLabel }: Props) {
   const isDisabled = disabled || loading;
+  const [showCheck, setShowCheck] = useState(false);
+  const anim = useRef(new Animated.Value(0)).current;
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      return;
+    }
+    if (successPulse === undefined) return;
+    setShowCheck(true);
+    anim.setValue(0);
+    Animated.sequence([
+      Animated.spring(anim, { toValue: 1, useNativeDriver: true, friction: 6, tension: 90 }),
+      Animated.delay(600),
+      Animated.timing(anim, { toValue: 0, duration: 180, useNativeDriver: true }),
+    ]).start(() => setShowCheck(false));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [successPulse]);
+
   return (
     <Pressable
       onPress={onPress}
@@ -33,6 +60,10 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading,
     >
       {loading ? (
         <ActivityIndicator color={variant === 'primary' || variant === 'success' ? colors.onAccent : colors.text} />
+      ) : showCheck ? (
+        <Animated.View style={[styles.successBadge, { opacity: anim, transform: [{ scale: anim }] }]}>
+          <MaterialCommunityIcons name="check" size={16} color={colors.onAccent} />
+        </Animated.View>
       ) : (
         <Text style={[styles.label, labelStyles[variant]]}>{title}</Text>
       )}
@@ -56,6 +87,14 @@ const styles = StyleSheet.create({
   },
   pressed: {
     opacity: 0.75,
+  },
+  successBadge: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.success,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
 

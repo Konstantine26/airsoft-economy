@@ -5,6 +5,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+import { useSavePulse } from '../hooks/useSavePulse';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { TextField } from './TextField';
@@ -25,6 +26,7 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
   const [avatarError, setAvatarError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [nameError, setNameError] = useState<string | null>(null);
+  const [savePulse, triggerSave] = useSavePulse();
 
   useEffect(() => {
     if (visible) setFullName(profile?.full_name ?? '');
@@ -88,6 +90,8 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
       setNameError(error.message);
       return;
     }
+    triggerSave();
+    await new Promise((resolve) => setTimeout(resolve, 700));
     await refreshProfile();
     onClose?.();
   };
@@ -115,7 +119,14 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
         autoCapitalize="words"
         error={nameError}
       />
-      <Button title="Сохранить" onPress={saveName} loading={saving} disabled={!fullName.trim()} style={styles.saveButton} />
+      <Button
+        title="Сохранить"
+        onPress={saveName}
+        loading={saving}
+        disabled={!fullName.trim()}
+        successPulse={savePulse}
+        style={styles.saveButton}
+      />
 
       <View style={styles.infoBlock}>
         {session?.user.email ? <Text style={styles.infoLabel}>Email: {session.user.email}</Text> : null}

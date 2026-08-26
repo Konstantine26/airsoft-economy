@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { Club, Polygon, PolygonMap, PolygonType } from '../lib/database.types';
+import { useSavePulse } from '../hooks/useSavePulse';
 import { ImageLightbox } from './ImageLightbox';
 import { Card } from './Card';
 import { Chip } from './Chip';
@@ -42,6 +43,7 @@ export function PolygonsScreen() {
   const [uploading, setUploading] = useState(false);
   const [lightboxUri, setLightboxUri] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
+  const [editSavePulse, triggerEditSave] = useSavePulse();
 
   const [name, setName] = useState('');
   const [country, setCountry] = useState('');
@@ -148,6 +150,8 @@ export function PolygonsScreen() {
     const updated = { ...selected, ...updates };
     setSelected(updated);
     setPolygons((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
+    triggerEditSave();
+    await new Promise((resolve) => setTimeout(resolve, 700));
     setEditing(false);
   };
 
@@ -279,7 +283,7 @@ export function PolygonsScreen() {
             </View>
 
             <View style={styles.row}>
-              <Button title="Сохранить" onPress={saveEdit} style={styles.flexButton} />
+              <Button title="Сохранить" onPress={saveEdit} successPulse={editSavePulse} style={styles.flexButton} />
               <Button title="Отмена" variant="secondary" onPress={() => setEditing(false)} style={styles.flexButton} />
             </View>
           </>

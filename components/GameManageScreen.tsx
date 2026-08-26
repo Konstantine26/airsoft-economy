@@ -74,6 +74,8 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [newSideName, setNewSideName] = useState('');
   const [sideNameInputs, setSideNameInputs] = useState<Record<string, string>>({});
   const [sideCostInputs, setSideCostInputs] = useState<Record<string, string>>({});
+  const [sidePulses, setSidePulses] = useState<Record<string, number>>({});
+  const pulseSide = (key: string) => setSidePulses((prev) => ({ ...prev, [key]: (prev[key] ?? 0) + 1 }));
 
   const [traders, setTraders] = useState<TraderRow[]>([]);
   const [newTraderProfileId, setNewTraderProfileId] = useState<string | null>(null);
@@ -329,6 +331,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     }
     setSides((prev) => prev.map((s) => (s.id === side.id ? { ...s, name } : s)));
     setSideNameInputs((prev) => ({ ...prev, [side.id]: name }));
+    pulseSide(`name-${side.id}`);
   };
 
   const deleteSide = async (side: GameSide) => {
@@ -356,6 +359,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
     }
     setSides((prev) => prev.map((s) => (s.id === sideId ? { ...s, revival_cost: cost } : s)));
     setSideCostInputs((prev) => ({ ...prev, [sideId]: cost !== null ? String(cost) : '' }));
+    pulseSide(`cost-${sideId}`);
   };
 
   const confirmParticipant = async (row: ParticipantRow) => {
@@ -627,6 +631,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
                 title="Сохранить"
                 variant="secondary"
                 onPress={() => renameSide(side, sideNameInputs[side.id] ?? side.name)}
+                successPulse={sidePulses[`name-${side.id}`]}
               />
             </View>
             <Pressable onPress={() => deleteSide(side)} style={styles.deleteSideLink}>
@@ -664,6 +669,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
                         sideCostInputs[side.id] ?? (side.revival_cost != null ? String(side.revival_cost) : '')
                       )
                     }
+                    successPulse={sidePulses[`cost-${side.id}`]}
                   />
                 </View>
               </>

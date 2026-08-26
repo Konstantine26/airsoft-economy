@@ -3,6 +3,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { supabase } from '../lib/supabase';
 import type { Club, Game, Polygon, Profile, Project } from '../lib/database.types';
 import { GAME_TYPES, GAME_TYPE_LABEL, type GameType } from '../lib/gameTypes';
+import { useSavePulse } from '../hooks/useSavePulse';
 import { Card } from './Card';
 import { Chip } from './Chip';
 import { Button } from './Button';
@@ -30,6 +31,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
   const [projectOrganizerIds, setProjectOrganizerIds] = useState<Set<string>>(new Set());
   const [gameOrganizerIds, setGameOrganizerIds] = useState<Record<string, Set<string>>>({});
   const [manageGameId, setManageGameId] = useState<string | null>(null);
+  const [editProjectSavePulse, triggerEditProjectSave] = useSavePulse();
 
   const [newProjectName, setNewProjectName] = useState('');
   const [newProjectDescription, setNewProjectDescription] = useState('');
@@ -175,8 +177,10 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
     const updated = { ...selectedProject, ...updates };
     setSelectedProject(updated);
     setProjects((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-    setEditingProject(false);
     onProjectsChanged();
+    triggerEditProjectSave();
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    setEditingProject(false);
   };
 
   const toggleArchived = async (project: Project) => {
@@ -368,7 +372,12 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
               ))}
             </View>
             <View style={styles.row}>
-              <Button title="Сохранить" onPress={saveEditProject} style={styles.flexButton} />
+              <Button
+                title="Сохранить"
+                onPress={saveEditProject}
+                successPulse={editProjectSavePulse}
+                style={styles.flexButton}
+              />
               <Button title="Отмена" variant="secondary" onPress={() => setEditingProject(false)} style={styles.flexButton} />
             </View>
           </>

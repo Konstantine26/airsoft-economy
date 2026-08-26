@@ -16,6 +16,7 @@ import {
 } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { GAME_TYPES, GAME_TYPE_LABEL, type GameType } from '../lib/gameTypes';
+import { useSavePulse } from '../hooks/useSavePulse';
 import { Button } from './Button';
 import { Card } from './Card';
 import { DateTimeField } from './DateTimeField';
@@ -72,6 +73,7 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
   const [openPicker, setOpenPicker] = useState<PickerKind>(null);
   const [submitting, setSubmitting] = useState<'draft' | 'published' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [savePulse, triggerSave] = useSavePulse();
 
   useEffect(() => {
     supabase
@@ -291,6 +293,11 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
         }
       }
 
+      setSubmitting(null);
+      if (status === (editGame?.status ?? 'draft')) {
+        triggerSave();
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      }
       onDone(gameId);
     } catch (e) {
       const message =
@@ -300,7 +307,6 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
             ? (e as { message: string }).message
             : null;
       setError(message || 'Не удалось создать игру');
-    } finally {
       setSubmitting(null);
     }
   };
@@ -523,6 +529,7 @@ export function CreateGameScreen({ projects, editGame, onDone, onCancel }: Props
           onPress={() => submit(saveStatus)}
           loading={submitting === saveStatus}
           disabled={submitting !== null}
+          successPulse={savePulse}
           style={styles.footerButton}
         />
         {showPublishButton ? (
