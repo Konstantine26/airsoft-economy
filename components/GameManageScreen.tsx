@@ -72,6 +72,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
   const [sides, setSides] = useState<GameSide[]>([]);
   const [participants, setParticipants] = useState<ParticipantRow[]>([]);
   const [newSideName, setNewSideName] = useState('');
+  const [sideNameInputs, setSideNameInputs] = useState<Record<string, string>>({});
   const [sideCostInputs, setSideCostInputs] = useState<Record<string, string>>({});
 
   const [traders, setTraders] = useState<TraderRow[]>([]);
@@ -312,6 +313,32 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       return;
     }
     setSides((prev) => prev.map((s) => (s.id === sideId ? { ...s, commander_id: profileId } : s)));
+  };
+
+  const renameSide = async (side: GameSide, rawValue: string) => {
+    const name = rawValue.trim();
+    if (!name) {
+      setError('Название стороны не может быть пустым');
+      return;
+    }
+    setError(null);
+    const { error } = await supabase.from('game_sides').update({ name }).eq('id', side.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    setSides((prev) => prev.map((s) => (s.id === side.id ? { ...s, name } : s)));
+    setSideNameInputs((prev) => ({ ...prev, [side.id]: name }));
+  };
+
+  const deleteSide = async (side: GameSide) => {
+    setError(null);
+    const { error } = await supabase.from('game_sides').delete().eq('id', side.id);
+    if (error) {
+      setError(error.message);
+      return;
+    }
+    reloadDetail();
   };
 
   const saveSideRevivalCost = async (sideId: string, rawValue: string) => {
@@ -589,7 +616,22 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       <View style={styles.cardsList}>
         {sides.map((side) => (
           <Card key={side.id}>
-            <Text style={styles.cardTitle}>{side.name}</Text>
+            <Text style={styles.label}>Название стороны</Text>
+            <View style={styles.row}>
+              <TextField
+                style={styles.flexButton}
+                value={sideNameInputs[side.id] ?? side.name}
+                onChangeText={(text) => setSideNameInputs((prev) => ({ ...prev, [side.id]: text }))}
+              />
+              <Button
+                title="Сохранить"
+                variant="secondary"
+                onPress={() => renameSide(side, sideNameInputs[side.id] ?? side.name)}
+              />
+            </View>
+            <Pressable onPress={() => deleteSide(side)} style={styles.deleteSideLink}>
+              <Text style={styles.deleteLink}>Удалить сторону</Text>
+            </Pressable>
             <Text style={styles.label}>Командир стороны</Text>
             <View style={styles.chips}>
               <Chip label="—" selected={!side.commander_id} onPress={() => setSideCommander(side.id, null)} />
@@ -1000,6 +1042,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.danger,
     marginTop: 2,
+  },
+  deleteSideLink: {
+    alignSelf: 'flex-start',
+    marginTop: 6,
+    marginBottom: spacing.sm + 2,
   },
   error: {
     fontFamily: font.body,
