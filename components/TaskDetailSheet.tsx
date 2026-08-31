@@ -16,6 +16,7 @@ type Props = {
   sides: TaskSideOption[];
   teams: TaskTeamOption[];
   participants: TaskParticipantOption[];
+  taskSideIds?: Record<string, string[]>;
   profileNameById: Record<string, string>;
   currentProfileId: string;
   isOrganizer: boolean;
@@ -30,6 +31,7 @@ export function TaskDetailSheet({
   sides,
   teams,
   participants,
+  taskSideIds = {},
   profileNameById,
   currentProfileId,
   isOrganizer,
@@ -41,6 +43,8 @@ export function TaskDetailSheet({
   const [attachments, setAttachments] = useState<TaskAttachment[]>([]);
   const [pickingRecipient, setPickingRecipient] = useState(false);
   const [chosenRecipientId, setChosenRecipientId] = useState<string | null>(null);
+  const [pickingCustomer, setPickingCustomer] = useState(false);
+  const [chosenCustomerId, setChosenCustomerId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,13 +57,22 @@ export function TaskDetailSheet({
     setError(null);
     setPickingRecipient(false);
     setChosenRecipientId(null);
+    setPickingCustomer(false);
+    setChosenCustomerId(null);
     if (task) loadAttachments(task.id);
     else setAttachments([]);
   }, [task, loadAttachments]);
 
   if (!task) return null;
 
-  const sideName = sides.find((s) => s.id === task.side_id)?.name ?? '—';
+  const isMultiSide = task.visibility === 'sides';
+  const thisTaskSideIds = isMultiSide ? (taskSideIds[task.id] ?? []) : task.side_id ? [task.side_id] : [];
+  const sideName = isMultiSide
+    ? sides
+        .filter((s) => thisTaskSideIds.includes(s.id))
+        .map((s) => s.name)
+        .join(', ') || '—'
+    : (sides.find((s) => s.id === task.side_id)?.name ?? '—');
   const teamName = task.team_id ? teams.find((t) => t.id === task.team_id)?.name ?? '—' : null;
   const assigneeName = task.assignee_profile_id ? profileNameById[task.assignee_profile_id] ?? '—' : null;
   const customerName = profileNameById[task.customer_profile_id] ?? '—';
@@ -77,14 +90,20 @@ export function TaskDetailSheet({
     task.visibility === 'claimable' &&
     task.status === 'open' &&
     !task.assignee_profile_id &&
+    !!task.side_id &&
     (isOrganizer || traderSideIds.includes(task.side_id) || commandedSideIds.includes(task.side_id));
 
   const canConfirm = task.customer_profile_id === currentProfileId && isOpenish;
   const canCancel = (task.customer_profile_id === currentProfileId || isOrganizer) && isOpenish;
+  const canChangeCustomer =
+    (task.customer_profile_id === currentProfileId || isOrganizer) && task.status !== 'completed';
 
-  const recipientCandidates = participants.filter(
-    (p) => p.effectiveSideId === task.side_id && (task.visibility !== 'team' || p.teamId === task.team_id)
-  );
+  const recipientCandidates = isMultiSide
+    ? participants.filter((p) => p.effectiveSideId && thisTaskSideIds.includes(p.effectiveSideId))
+    : participants.filter(
+        (p) => p.effectiveSideId === task.side_id && (task.visibility !== 'team' || p.teamId === task.team_id)
+      );
+  const customerCandidates = participants.filter((p) => p.profileId !== task.customer_profile_id);
 
   const run = async (action: () => PromiseLike<{ error: { message: string } | null }>) => {
     setSubmitting(true);
@@ -104,6 +123,8 @@ export function TaskDetailSheet({
   const cancel = () => run(() => supabase.rpc('cancel_task', { p_task_id: task.id }));
   const confirm = (recipientId?: string) =>
     run(() => supabase.rpc('complete_task', { p_task_id: task.id, p_recipient_profile_id: recipientId ?? null }));
+  const changeCustomer = (profileId: string) =>
+    run(() => supabase.rpc('change_task_customer', { p_task_id: task.id, p_new_customer_profile_id: profileId }));
 
   return (
     <Sheet visible={!!task} onRequestClose={onClose}>
@@ -118,7 +139,7 @@ export function TaskDetailSheet({
           <Text style={styles.badge}>{TASK_STATUS_LABEL[task.status]}</Text>
         </View>
 
-        <Text style={styles.meta}>Сторона: {sideName}</Text>
+        <Text style={styles.meta}>{isMultiSide ? 'Стороны' : 'Сторона'}: {sideName}</Text>
         {teamName ? <Text style={styles.meta}>Команда: {teamName}</Text> : null}
         {assigneeName ? <Text style={styles.meta}>Исполнитель: {assigneeName}</Text> : null}
         <Text style={styles.meta}>Заказчик: {customerName}</Text>
@@ -155,6 +176,14 @@ export function TaskDetailSheet({
           {canCancel ? (
             <Button title="Отменить" variant="danger" onPress={cancel} loading={submitting} style={styles.actionButton} />
           ) : null}
+          {canChangeCustomer ? (
+            <Button
+              title="Сменить заказчика"
+              variant="secondary"
+              onPress={() => setPickingCustomer((v) => !v)}
+              style={styles.actionButton}
+            />
+          ) : null}
         </View>
 
         {pickingRecipient ? (
@@ -184,6 +213,35 @@ export function TaskDetailSheet({
                 if (!chosenRecipientId) return;
                 if (canConfirm) confirm(chosenRecipientId);
                 else assignTo(chosenRecipientId);
+              }}
+              style={styles.pickerSubmit}
+            />
+          </View>
+        ) : null}
+
+        {pickingCustomer ? (
+          <View style={styles.recipientPicker}>
+            <Text style={styles.label}>Новый заказчик</Text>
+            {customerCandidates.length === 0 ? (
+              <Text style={styles.hint}>Нет других участников</Text>
+            ) : (
+              <View style={styles.chips}>
+                {customerCandidates.map((p) => (
+                  <Chip
+                    key={p.profileId}
+                    label={p.fullName}
+                    selected={chosenCustomerId === p.profileId}
+                    onPress={() => setChosenCustomerId(p.profileId)}
+                  />
+                ))}
+              </View>
+            )}
+            <Button
+              title="Сохранить"
+              disabled={!chosenCustomerId}
+              loading={submitting}
+              onPress={() => {
+                if (chosenCustomerId) changeCustomer(chosenCustomerId);
               }}
               style={styles.pickerSubmit}
             />

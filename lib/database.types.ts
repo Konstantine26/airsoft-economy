@@ -256,7 +256,7 @@ export type GameTraderSide = {
   side_id: string;
 };
 
-export type TaskVisibility = 'side' | 'team' | 'personal' | 'claimable';
+export type TaskVisibility = 'side' | 'team' | 'personal' | 'claimable' | 'sides';
 export type TaskStatus = 'open' | 'claimed' | 'completed' | 'cancelled';
 
 export type Task = {
@@ -265,7 +265,7 @@ export type Task = {
   title: string;
   description: string | null;
   visibility: TaskVisibility;
-  side_id: string;
+  side_id: string | null;
   team_id: string | null;
   assignee_profile_id: string | null;
   customer_profile_id: string;
@@ -275,6 +275,13 @@ export type Task = {
   created_at: string;
   completed_at: string | null;
   completed_by: string | null;
+};
+
+// Only populated for visibility = 'sides' -- the sides a multi-side task
+// was posted to (tasks.side_id stays null for those, see 038_task_multi_side_and_customer_change.sql).
+export type TaskSide = {
+  task_id: string;
+  side_id: string;
 };
 
 export type TaskAttachmentKind = 'file' | 'image' | 'audio';
@@ -830,7 +837,7 @@ export type Database = {
           game_id: string;
           title: string;
           visibility: TaskVisibility;
-          side_id: string;
+          side_id: string | null;
           customer_profile_id: string;
           created_by: string;
         };
@@ -864,6 +871,25 @@ export type Database = {
             foreignKeyName: 'tasks_customer_profile_id_fkey';
             columns: ['customer_profile_id'];
             referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      task_sides: {
+        Row: TaskSide;
+        Insert: Partial<TaskSide> & { task_id: string; side_id: string };
+        Update: Partial<TaskSide>;
+        Relationships: [
+          {
+            foreignKeyName: 'task_sides_task_id_fkey';
+            columns: ['task_id'];
+            referencedRelation: 'tasks';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'task_sides_side_id_fkey';
+            columns: ['side_id'];
+            referencedRelation: 'game_sides';
             referencedColumns: ['id'];
           },
         ];
@@ -1000,6 +1026,13 @@ export type Database = {
         Args: {
           p_task_id: string;
           p_recipient_profile_id?: string | null;
+        };
+        Returns: Task;
+      };
+      change_task_customer: {
+        Args: {
+          p_task_id: string;
+          p_new_customer_profile_id: string;
         };
         Returns: Task;
       };

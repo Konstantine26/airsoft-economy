@@ -29,6 +29,7 @@ export function TasksSection({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [taskSideIds, setTaskSideIds] = useState<Record<string, string[]>>({});
   const [sides, setSides] = useState<TaskSideOption[]>([]);
   const [teams, setTeams] = useState<TaskTeamOption[]>([]);
   const [participants, setParticipants] = useState<TaskParticipantOption[]>([]);
@@ -53,8 +54,21 @@ export function TasksSection({
     ]);
 
     if (tasksRes.error) setError(tasksRes.error.message);
-    setTasks(tasksRes.data ?? []);
+    const taskRows = tasksRes.data ?? [];
+    setTasks(taskRows);
     setSides(sidesRes.data ?? []);
+
+    const sidesTaskIds = taskRows.filter((t) => t.visibility === 'sides').map((t) => t.id);
+    if (sidesTaskIds.length > 0) {
+      const { data: taskSidesRows } = await supabase.from('task_sides').select('task_id, side_id').in('task_id', sidesTaskIds);
+      const sideIdMap: Record<string, string[]> = {};
+      for (const row of taskSidesRows ?? []) {
+        (sideIdMap[row.task_id] ??= []).push(row.side_id);
+      }
+      setTaskSideIds(sideIdMap);
+    } else {
+      setTaskSideIds({});
+    }
 
     const teamSideMap = new Map<string, string>();
     const teamRows: TaskTeamOption[] = [];
@@ -110,11 +124,19 @@ export function TasksSection({
   const claimableTasks = activeTasks.filter((t) => t.visibility === 'claimable' && !t.assignee_profile_id);
   const otherTasks = splitClaimable ? tasks.filter((t) => !claimableTasks.includes(t)) : tasks;
 
+  const sideNameFor = (task: Task) =>
+    task.visibility === 'sides'
+      ? sides
+          .filter((s) => (taskSideIds[task.id] ?? []).includes(s.id))
+          .map((s) => s.name)
+          .join(', ') || '—'
+      : (sides.find((s) => s.id === task.side_id)?.name ?? '—');
+
   const renderTask = (task: Task) => (
     <TaskCard
       key={task.id}
       task={task}
-      sideName={sides.find((s) => s.id === task.side_id)?.name ?? '—'}
+      sideName={sideNameFor(task)}
       teamName={task.team_id ? teams.find((t) => t.id === task.team_id)?.name ?? null : null}
       assigneeName={task.assignee_profile_id ? profileNameById[task.assignee_profile_id] ?? null : null}
       onPress={() => setSelectedTask(task)}
@@ -170,6 +192,7 @@ export function TasksSection({
         sides={allowedSides}
         teams={teams}
         participants={participants}
+        isOrganizer={isOrganizer}
         onClose={() => setCreating(false)}
         onCreated={load}
       />
@@ -179,6 +202,7 @@ export function TasksSection({
         sides={sides}
         teams={teams}
         participants={participants}
+        taskSideIds={taskSideIds}
         profileNameById={profileNameById}
         currentProfileId={profile?.id ?? ''}
         isOrganizer={isOrganizer}

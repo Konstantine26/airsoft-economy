@@ -5,6 +5,7 @@ export const TASK_VISIBILITY_LABEL: Record<TaskVisibility, string> = {
   team: 'Для команды',
   personal: 'Личное',
   claimable: 'Можно взять',
+  sides: 'Нескольким сторонам',
 };
 
 export const TASK_STATUS_LABEL: Record<TaskStatus, string> = {

@@ -20,6 +20,7 @@ export function TaskCard({ task, sideName, teamName, assigneeName, onPress }: Pr
     if (task.visibility === 'claimable') {
       return assigneeName ? `Взял: ${assigneeName}` : `Можно взять · сторона «${sideName}»`;
     }
+    if (task.visibility === 'sides') return `Стороны «${sideName}»`;
     return `Сторона «${sideName}»`;
   })();
 

@@ -24,15 +24,27 @@ type Props = {
   sides: TaskSideOption[];
   teams: TaskTeamOption[];
   participants: TaskParticipantOption[];
+  isOrganizer?: boolean;
   onClose: () => void;
   onCreated: () => void;
 };
 
-export function CreateTaskModal({ visible, gameId, customerProfileId, sides, teams, participants, onClose, onCreated }: Props) {
+export function CreateTaskModal({
+  visible,
+  gameId,
+  customerProfileId,
+  sides,
+  teams,
+  participants,
+  isOrganizer = false,
+  onClose,
+  onCreated,
+}: Props) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [visibility, setVisibility] = useState<TaskVisibility>('side');
   const [sideId, setSideId] = useState<string | null>(sides[0]?.id ?? null);
+  const [sideIds, setSideIds] = useState<string[]>([]);
   const [teamId, setTeamId] = useState<string | null>(null);
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
   const [reward, setReward] = useState('');
@@ -43,11 +55,18 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const visibilityOptions: TaskVisibility[] = isOrganizer ? [...VISIBILITIES, 'sides'] : VISIBILITIES;
+
+  const toggleSideId = (id: string) => {
+    setSideIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
+  };
+
   const reset = () => {
     setTitle('');
     setDescription('');
     setVisibility('side');
     setSideId(sides[0]?.id ?? null);
+    setSideIds([]);
     setTeamId(null);
     setAssigneeId(null);
     setReward('');
@@ -113,7 +132,12 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
       setError('Укажите название задания');
       return;
     }
-    if (!sideId) {
+    if (visibility === 'sides') {
+      if (sideIds.length < 2) {
+        setError('Выберите минимум две стороны');
+        return;
+      }
+    } else if (!sideId) {
       setError('Выберите сторону');
       return;
     }
@@ -143,7 +167,7 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
           title: title.trim(),
           description: description.trim() || null,
           visibility,
-          side_id: sideId,
+          side_id: visibility === 'sides' ? null : sideId,
           team_id: visibility === 'team' ? teamId : null,
           assignee_profile_id: visibility === 'personal' ? assigneeId : null,
           customer_profile_id: customerProfileId,
@@ -153,6 +177,13 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
         .select('*')
         .single();
       if (insertError) throw insertError;
+
+      if (visibility === 'sides') {
+        const { error: sidesError } = await supabase
+          .from('task_sides')
+          .insert(sideIds.map((side_id) => ({ task_id: task.id, side_id })));
+        if (sidesError) throw sidesError;
+      }
 
       const queued = [...images, ...files, ...audioFiles, ...(recordedAudio ? [{ ...recordedAudio, kind: 'audio' as const }] : [])];
       for (const attachment of queued) {
@@ -209,7 +240,7 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
 
         <Text style={styles.label}>Доступность</Text>
         <View style={styles.chips}>
-          {VISIBILITIES.map((v) => (
+          {visibilityOptions.map((v) => (
             <Chip
               key={v}
               label={TASK_VISIBILITY_LABEL[v]}
@@ -223,7 +254,16 @@ export function CreateTaskModal({ visible, gameId, customerProfileId, sides, tea
           ))}
         </View>
 
-        {sides.length > 1 ? (
+        {visibility === 'sides' ? (
+          <>
+            <Text style={styles.label}>Стороны (минимум две)</Text>
+            <View style={styles.chips}>
+              {sides.map((s) => (
+                <Chip key={s.id} label={s.name} selected={sideIds.includes(s.id)} onPress={() => toggleSideId(s.id)} />
+              ))}
+            </View>
+          </>
+        ) : sides.length > 1 ? (
           <>
             <Text style={styles.label}>Сторона</Text>
             <View style={styles.chips}>
