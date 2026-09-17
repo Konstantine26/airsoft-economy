@@ -16,6 +16,14 @@
 --    on the same terms as reviving someone else: gated purely by having enough balance
 --    to cover the side's revival cost, nothing more.
 
+-- Backfill: revival_charge rows written under the old (036) behavior credited
+-- the reviver directly, so to_profile_id was set on them. The new model below
+-- treats that money as leaving the economy entirely, so bring existing rows
+-- in line with the new invariant before the stricter constraint is added --
+-- otherwise ADD CONSTRAINT fails validating them.
+update personal_transactions set to_profile_id = null, to_team_id = null
+  where kind = 'revival_charge' and (to_profile_id is not null or to_team_id is not null);
+
 alter table personal_transactions drop constraint if exists valid_destination;
 alter table personal_transactions add constraint valid_destination check (
   (kind = 'participant_to_team' and to_team_id is not null and to_profile_id is null)
