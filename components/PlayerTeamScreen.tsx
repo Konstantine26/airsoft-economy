@@ -245,7 +245,7 @@ export function PlayerTeamScreen({ ownMembership, activeProjectId }: Props) {
                         title="Отменить"
                         variant="danger"
                         onPress={() => withdrawRequest(request)}
-                        style={styles.applyButton}
+                        size="sm"
                       />
                     </Card>
                   );
@@ -282,7 +282,7 @@ export function PlayerTeamScreen({ ownMembership, activeProjectId }: Props) {
                           title="Отменить"
                           variant="danger"
                           onPress={() => request && withdrawRequest(request)}
-                          style={styles.applyButton}
+                          size="sm"
                         />
                       ) : hasPendingRequest ? (
                         <Text style={styles.blockedHint}>Сначала отзовите текущую заявку</Text>
@@ -291,7 +291,7 @@ export function PlayerTeamScreen({ ownMembership, activeProjectId }: Props) {
                           title="Подать заявку"
                           onPress={() => applyToTeam(team)}
                           loading={applyingTeamId === team.id}
-                          style={styles.applyButton}
+                          size="sm"
                         />
                       )}
                     </Card>
@@ -317,7 +317,7 @@ export function PlayerTeamScreen({ ownMembership, activeProjectId }: Props) {
                   title="Отменить"
                   variant="danger"
                   onPress={() => withdrawCreationRequest(latestCreationRequest)}
-                  style={styles.applyButton}
+                  size="sm"
                 />
               </Card>
               {latestCreationRequest.status === 'rejected' ? (
@@ -436,10 +436,6 @@ const styles = StyleSheet.create({
     fontFamily: font.bodySemiBold,
     fontSize: 13.5,
     color: colors.text,
-  },
-  applyButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 14,
   },
   statusPending: {
     fontFamily: font.body,

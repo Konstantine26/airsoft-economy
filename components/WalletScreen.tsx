@@ -184,7 +184,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   balance: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 38,
     color: colors.text,
     marginTop: 8,
@@ -246,12 +247,14 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   amountOut: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 14.5,
     color: colors.danger,
   },
   amountIn: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 14.5,
     color: colors.success,
   },

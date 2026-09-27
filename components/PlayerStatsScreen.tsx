@@ -238,7 +238,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   statNumber: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 24,
     color: colors.text,
   },
@@ -258,7 +259,8 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   balanceValue: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 20,
     color: colors.text,
     marginTop: 4,
@@ -284,12 +286,14 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   amountOut: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 14.5,
     color: colors.danger,
   },
   amountIn: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 14.5,
     color: colors.success,
   },

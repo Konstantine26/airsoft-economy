@@ -6,6 +6,7 @@ import type { Game, GameParticipantStatus, Polygon, Project, Team, TeamMember } 
 import { Card } from './Card';
 import { GameCardScreen } from './GameCardScreen';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatDateTime } from '../lib/format';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
@@ -128,7 +129,7 @@ export function PlayerGamesScreen({ ownMembership, activeProjectId, onOpenGame }
                 <Text style={styles.label}>
                   {game.project?.name ?? '—'} · {game.polygon?.name ?? '—'}
                 </Text>
-                {game.starts_at ? <Text style={styles.label}>{new Date(game.starts_at).toLocaleString()}</Text> : null}
+                {game.starts_at ? <Text style={styles.label}>{formatDateTime(game.starts_at)}</Text> : null}
               </Card>
             </Pressable>
           ))}

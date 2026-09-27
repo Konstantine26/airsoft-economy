@@ -8,6 +8,7 @@ import { AuthScreen } from './components/AuthScreen';
 import { Dashboard } from './components/Dashboard';
 import { ForceChangePasswordScreen } from './components/ForceChangePasswordScreen';
 import { ProfileScreen } from './components/ProfileScreen';
+import { ToastProvider } from './components/Toast';
 import { configureSupabase, currentServer } from './lib/supabase';
 import { resolveSelectedServer, type ServerConfig } from './lib/serverConfig';
 import { colors, fontsToLoad } from './lib/theme';
@@ -72,15 +73,17 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.container}>
-        {ready ? (
-          <AuthProvider key={`${server.id}:${server.url}`}>
-            <Root currentServer={server} onServerChange={handleServerChange} />
-          </AuthProvider>
-        ) : (
-          <View style={styles.center}>
-            <ActivityIndicator color={colors.accent} />
-          </View>
-        )}
+        <ToastProvider>
+          {ready ? (
+            <AuthProvider key={`${server.id}:${server.url}`}>
+              <Root currentServer={server} onServerChange={handleServerChange} />
+            </AuthProvider>
+          ) : (
+            <View style={styles.center}>
+              <ActivityIndicator color={colors.accent} />
+            </View>
+          )}
+        </ToastProvider>
         <StatusBar style="light" />
       </SafeAreaView>
     </SafeAreaProvider>

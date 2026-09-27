@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, View, type StyleProp, type TextInputProps, type ViewStyle } from 'react-native';
-import { colors, font, radii } from '../lib/theme';
+import { colors, font, radii, sizes } from '../lib/theme';
 
 type Props = TextInputProps & {
   label?: string;
@@ -42,7 +42,7 @@ export function TextField({ label, error, containerStyle, style, onFocus, onBlur
 const styles = StyleSheet.create({
   label: {
     fontFamily: font.bodyMedium,
-    fontSize: 12.5,
+    fontSize: 13,
     color: colors.textMuted,
     marginBottom: 6,
   },
@@ -51,9 +51,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.cardBorder,
     borderRadius: radii.md,
-    paddingVertical: 13,
+    minHeight: sizes.button,
+    paddingVertical: 12,
     paddingHorizontal: 14,
-    fontSize: 14.5,
+    fontSize: 16,
     color: colors.text,
     fontFamily: font.body,
   },
@@ -65,7 +66,7 @@ const styles = StyleSheet.create({
   },
   error: {
     fontFamily: font.body,
-    fontSize: 12,
+    fontSize: 13,
     color: colors.danger,
     marginTop: 6,
   },

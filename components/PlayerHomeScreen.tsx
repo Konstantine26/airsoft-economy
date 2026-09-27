@@ -8,6 +8,7 @@ import { Button } from './Button';
 import { GameCardScreen } from './GameCardScreen';
 import type { ActiveGame } from '../lib/activeGameStorage';
 import { colors, font, spacing } from '../lib/theme';
+import { formatDateTime } from '../lib/format';
 
 type Props = {
   ownMembership: (TeamMember & { team: Team }) | null;
@@ -110,7 +111,7 @@ export function PlayerHomeScreen({
           <Text style={styles.label}>Ближайшая игра</Text>
           <Text style={styles.cardTitle}>{nextGame.name}</Text>
           <Text style={styles.meta}>{nextGame.project?.name ?? '—'}</Text>
-          {nextGame.starts_at ? <Text style={styles.meta}>{new Date(nextGame.starts_at).toLocaleString()}</Text> : null}
+          {nextGame.starts_at ? <Text style={styles.meta}>{formatDateTime(nextGame.starts_at)}</Text> : null}
           <Button
             title="Приступить к игре"
             variant="success"

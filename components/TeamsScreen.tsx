@@ -303,7 +303,8 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   balance: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 15,
     color: colors.text,
   },

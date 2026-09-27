@@ -141,7 +141,8 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
   taskReward: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 14.5,
     color: colors.success,
   },

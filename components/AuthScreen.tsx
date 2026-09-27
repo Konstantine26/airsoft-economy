@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../contexts/AuthContext';
@@ -107,7 +108,7 @@ export function AuthScreen({ currentServer, onServerChange }: Props) {
   return (
     <View style={styles.container}>
       <Pressable onPress={handleLogoPress} style={styles.glyph} accessibilityRole="button">
-        <Text style={styles.glyphIcon}>⚔️</Text>
+        <MaterialCommunityIcons name="sword-cross" size={26} color={colors.accent} />
       </Pressable>
       <Text style={styles.title}>Airsoft Economy</Text>
       <Text style={styles.subtitle}>{mode === 'signIn' ? 'Вход' : 'Регистрация'}</Text>
@@ -261,9 +262,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: spacing.md,
-  },
-  glyphIcon: {
-    fontSize: 24,
   },
   title: {
     fontFamily: font.heading,

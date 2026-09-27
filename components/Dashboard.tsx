@@ -7,6 +7,7 @@ import { useCapabilities } from '../hooks/useCapabilities';
 import { Avatar } from './Avatar';
 import { Chip } from './Chip';
 import { TabBar, type TabBarItem } from './TabBar';
+import { Segmented, type SegmentedItem } from './Segmented';
 import { AdminScreen } from './AdminScreen';
 import { OrganizerScreen } from './OrganizerScreen';
 import { TeamCommanderScreen } from './TeamCommanderScreen';
@@ -22,7 +23,7 @@ import { HelpScreen } from './HelpScreen';
 import { NotificationsScreen } from './NotificationsScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { OnboardingCarousel } from './OnboardingCarousel';
-import { colors, font, spacing } from '../lib/theme';
+import { colors, font, sizes, spacing } from '../lib/theme';
 import { ROLE_META, type RoleKey } from '../lib/roles';
 import { hasSeenOnboarding, markOnboardingSeen } from '../lib/onboardingStorage';
 import { getActiveGame, setActiveGame as persistActiveGame, clearActiveGame as persistClearActiveGame, type ActiveGame } from '../lib/activeGameStorage';
@@ -31,8 +32,14 @@ import type { Project } from '../lib/database.types';
 type PlayerTab = 'home' | 'games' | 'team' | 'wallet' | 'stats';
 type OrganizerTab = 'overview' | 'games' | 'economy';
 
+const ORGANIZER_SEGMENTS: SegmentedItem<OrganizerTab>[] = [
+  { key: 'overview', label: 'Обзор' },
+  { key: 'games', label: 'Игры' },
+  { key: 'economy', label: 'Экономика' },
+];
+
 export function Dashboard() {
-  const { profile, signOut } = useAuth();
+  const { profile } = useAuth();
   const capabilities = useCapabilities();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
@@ -188,7 +195,7 @@ export function Dashboard() {
       <View style={styles.header}>
         <View style={styles.brand}>
           <View style={styles.brandGlyph}>
-            <Text style={styles.brandGlyphIcon}>⚔️</Text>
+            <MaterialCommunityIcons name="sword-cross" size={15} color={colors.accent} />
           </View>
           <Text style={styles.brandName}>Airsoft Economy</Text>
         </View>
@@ -196,20 +203,19 @@ export function Dashboard() {
         <View style={styles.headerRight}>
           <Pressable
             onPress={() => setHelpVisible(true)}
-            hitSlop={6}
+            style={styles.iconButton}
             accessibilityRole="button"
             accessibilityLabel="Открыть справку"
           >
-            <MaterialCommunityIcons name="help-circle-outline" size={19} color={colors.textDim} />
+            <MaterialCommunityIcons name="help-circle-outline" size={22} color={colors.textMuted} />
           </Pressable>
           <Pressable
             onPress={() => setNotificationsVisible(true)}
-            style={styles.notificationSlot}
-            hitSlop={6}
+            style={styles.iconButton}
             accessibilityRole="button"
             accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
           >
-            <MaterialCommunityIcons name="bell-outline" size={18} color={colors.textDim} />
+            <MaterialCommunityIcons name="bell-outline" size={22} color={colors.textMuted} />
             {unreadCount > 0 ? (
               <View style={styles.notificationDot}>
                 <Text style={styles.notificationDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -218,13 +224,11 @@ export function Dashboard() {
           </Pressable>
           <Pressable
             onPress={() => setProfileVisible(true)}
+            style={styles.iconButton}
             accessibilityRole="button"
             accessibilityLabel="Открыть профиль"
           >
-            <Avatar uri={profile.avatar_url} name={profile.full_name} size={30} />
-          </Pressable>
-          <Pressable onPress={signOut} accessibilityRole="button" accessibilityLabel="Выйти из аккаунта">
-            <Text style={styles.signOut}>Выйти</Text>
+            <Avatar uri={profile.avatar_url} name={profile.full_name} size={32} />
           </Pressable>
         </View>
       </View>
@@ -239,7 +243,7 @@ export function Dashboard() {
               {projects.map((project) => (
                 <Chip
                   key={project.id}
-                  label={project.archived_at ? `🗄️ ${project.name}` : project.name}
+                  label={project.archived_at ? `${project.name} · архив` : project.name}
                   selected={activeProjectId === project.id}
                   onPress={() => setActiveProjectId(project.id)}
                   disabled={!!activeGame && project.id !== activeGame.projectId}
@@ -290,11 +294,12 @@ export function Dashboard() {
 
         {activeRole === 'organizer' ? (
           <>
-            <View style={styles.subNav}>
-              <Chip label="Обзор" selected={organizerTab === 'overview'} onPress={() => setOrganizerTab('overview')} />
-              <Chip label="Игры" selected={organizerTab === 'games'} onPress={() => setOrganizerTab('games')} />
-              <Chip label="Экономика проекта" selected={organizerTab === 'economy'} onPress={() => setOrganizerTab('economy')} />
-            </View>
+            <Segmented
+              items={ORGANIZER_SEGMENTS}
+              value={organizerTab}
+              onChange={setOrganizerTab}
+              style={styles.segmented}
+            />
             {organizerTab === 'overview' || organizerTab === 'games' ? (
               <OrganizerScreen view={organizerTab} activeProjectId={activeProjectId} />
             ) : null}
@@ -343,8 +348,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 10,
+    paddingTop: 6,
+    paddingBottom: 6,
     borderBottomWidth: 1,
     borderBottomColor: colors.cardBorder,
   },
@@ -355,40 +360,42 @@ const styles = StyleSheet.create({
     flexShrink: 1,
   },
   brandGlyph: {
-    width: 26,
-    height: 26,
-    borderRadius: 7,
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     backgroundColor: colors.accentSoft,
     borderWidth: 1,
     borderColor: colors.accentBorder,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandGlyphIcon: {
-    fontSize: 12,
-  },
   brandName: {
     fontFamily: font.heading,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.text,
     flexShrink: 1,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 2,
     flexShrink: 0,
   },
-  notificationSlot: {
-    padding: 2,
+  iconButton: {
+    width: sizes.hitMin,
+    height: sizes.hitMin,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   notificationDot: {
     position: 'absolute',
-    top: -4,
-    right: -6,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
+    top: 6,
+    right: 4,
+    minWidth: 17,
+    height: 17,
+    borderRadius: 9,
+    borderWidth: 2,
+    borderColor: colors.bg,
     paddingHorizontal: 3,
     backgroundColor: colors.danger,
     alignItems: 'center',
@@ -398,11 +405,6 @@ const styles = StyleSheet.create({
     fontFamily: font.bodyBold,
     fontSize: 9,
     color: colors.text,
-  },
-  signOut: {
-    fontFamily: font.body,
-    fontSize: 12.5,
-    color: colors.danger,
   },
   projectBar: {
     flexDirection: 'row',
@@ -428,6 +430,10 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
+  },
+  segmented: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
   },
   body: {
     flex: 1,

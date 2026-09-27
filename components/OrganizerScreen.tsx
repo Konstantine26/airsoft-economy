@@ -9,6 +9,7 @@ import { GameManageScreen } from './GameManageScreen';
 import { CreateGameScreen } from './CreateGameScreen';
 import { ClosedProjectAccessSheet } from './ClosedProjectAccessSheet';
 import { colors, font, spacing } from '../lib/theme';
+import { formatDateTime } from '../lib/format';
 
 type GameWithRelations = Game & { project: Project | null; polygon: Polygon | null };
 type GameStats = { sideCount: number; participantCount: number; pendingCount: number; confirmedCount: number };
@@ -293,7 +294,7 @@ function GameRow({ game, stats, onPress }: { game: GameWithRelations; stats?: Ga
         <Text style={styles.label}>
           {game.project?.name ?? ''} · {game.polygon?.name ?? '—'}
         </Text>
-        {game.starts_at ? <Text style={styles.label}>{new Date(game.starts_at).toLocaleString()}</Text> : null}
+        {game.starts_at ? <Text style={styles.label}>{formatDateTime(game.starts_at)}</Text> : null}
         <Text style={styles.label}>
           Сторон: {stats?.sideCount ?? 0} · Участников: {stats?.participantCount ?? 0}
         </Text>
@@ -340,7 +341,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
   },
   statValue: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 28,
     color: colors.text,
   },

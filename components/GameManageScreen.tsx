@@ -29,6 +29,7 @@ import { ImageLightbox } from './ImageLightbox';
 import { TasksSection } from './TasksSection';
 import { GameAnnouncementForm } from './GameAnnouncementForm';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatDateRange } from '../lib/format';
 
 const ATTACHMENTS_BUCKET = 'game-attachments';
 
@@ -524,8 +525,7 @@ export function GameManageScreen({ gameId, onBack, onDeleted }: Props) {
       {game.game_type ? <Text style={styles.subtitle}>{GAME_TYPE_LABEL[game.game_type]}</Text> : null}
       {game.starts_at ? (
         <Text style={styles.subtitle}>
-          Начало: {new Date(game.starts_at).toLocaleString()}
-          {game.ends_at ? ` · Окончание: ${new Date(game.ends_at).toLocaleString()}` : ''}
+          {formatDateRange(game.starts_at, game.ends_at)}
         </Text>
       ) : null}
       {game.description ? <Text style={styles.subtitle}>{game.description}</Text> : null}
@@ -888,11 +888,11 @@ function ParticipantRowView({
       <View style={styles.chips}>
         {row.status === 'pending' ? (
           <>
-            <Button title="Подтвердить" onPress={onConfirm} style={styles.smallActionButton} />
-            <Button title="Отклонить" variant="danger" onPress={onReject} style={styles.smallActionButton} />
+            <Button title="Подтвердить" onPress={onConfirm} size="sm" />
+            <Button title="Отклонить" variant="danger" onPress={onReject} size="sm" />
           </>
         ) : (
-          <Button title="Удалить" variant="danger" onPress={onRemove} style={styles.smallActionButton} />
+          <Button title="Удалить" variant="danger" onPress={onRemove} size="sm" />
         )}
       </View>
       <Text style={styles.label}>Переместить на сторону</Text>
@@ -1085,9 +1085,5 @@ const styles = StyleSheet.create({
     fontFamily: font.bodySemiBold,
     fontSize: 11.5,
     color: colors.success,
-  },
-  smallActionButton: {
-    paddingVertical: 7,
-    paddingHorizontal: 12,
   },
 });

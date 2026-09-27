@@ -1,35 +1,50 @@
+import type { TextStyle } from 'react-native';
+
+// Field-first dark palette: graphite with a slight cool bias instead of
+// neutral grey. Three text levels are deliberately far apart (≈16:1, 8:1,
+// 4.3:1 on `bg`) so secondary text survives direct sunlight.
 export const colors = {
-  bg: '#1c1c1c',
-  card: '#262626',
-  cardBorder: '#3a3a3a',
-  cardSoft: '#161616',
-  text: '#f2f2f2',
-  textMuted: '#8f8f8f',
-  textDim: '#878787',
-  accent: '#4f7fe8',
-  accentBorder: '#5c6cb8',
-  accentSoft: 'rgba(79, 127, 232, 0.14)',
-  accentSoftBorder: 'rgba(79, 127, 232, 0.6)',
-  onAccent: '#131a2e',
-  success: '#4fbe7a',
-  danger: '#d1543f',
+  bg: '#111315',
+  card: '#1A1D20',
+  cardBorder: '#30353A',
+  cardSoft: '#15181A',
+  surface2: '#23272B',
+  text: '#F2F4F3',
+  textMuted: '#A7AEAA',
+  textDim: '#737A77',
+  accent: '#5B8CF5',
+  accentBorder: '#4A74D6',
+  accentSoft: 'rgba(91, 140, 245, 0.16)',
+  accentSoftBorder: 'rgba(91, 140, 245, 0.6)',
+  onAccent: '#0A1224',
+  // Reserved for "a game is live right now" -- don't reuse it for generic
+  // warnings, or the in-game state stops being recognisable at a glance.
+  live: '#F3A838',
+  liveSoft: 'rgba(243, 168, 56, 0.15)',
+  onLive: '#221400',
+  success: '#45C27F',
+  successSoft: 'rgba(69, 194, 127, 0.15)',
+  onSuccess: '#07170E',
+  danger: '#EE5A45',
+  dangerSoft: 'rgba(238, 90, 69, 0.15)',
   crown: '#f5a623',
-  overlay: 'rgba(0, 0, 0, 0.55)',
+  toast: '#2C3136',
+  overlay: 'rgba(0, 0, 0, 0.6)',
   overlayStrong: 'rgba(0, 0, 0, 0.85)',
   white10: 'rgba(255, 255, 255, 0.06)',
   white14: 'rgba(255, 255, 255, 0.14)',
-  teamGradientStart: '#32447e',
-  teamGradientEnd: '#212c52',
-  teamGradientBorder: '#425790',
+  teamGradientStart: '#2F4278',
+  teamGradientEnd: '#1C2540',
+  teamGradientBorder: '#3F5591',
 } as const;
 
 export const radii = {
   sm: 8,
-  md: 11,
-  lg: 13,
+  md: 12,
+  lg: 16,
   xl: 16,
-  pill: 20,
-  sheet: 20,
+  pill: 999,
+  sheet: 22,
 } as const;
 
 export const spacing = {
@@ -39,15 +54,56 @@ export const spacing = {
   lg: 16,
   xl: 20,
   xxl: 24,
+  xxxl: 32,
 } as const;
 
+// Touch targets. 44 is the floor for anything tappable (iOS HIG; Android
+// asks for 48dp), and players use the app in gloves.
+export const sizes = {
+  hitMin: 44,
+  buttonSm: 36,
+  button: 48,
+  buttonLg: 52,
+  listRow: 56,
+  listRowTwoLine: 64,
+  avatarRow: 36,
+} as const;
+
+export const motion = {
+  fast: 120,
+  base: 220,
+  hold: 900,
+  pressScale: 0.97,
+} as const;
+
+// Rajdhani has no Cyrillic glyphs (latin/devanagari only), so Russian text
+// set in it silently falls back to the system font. Keep it for digits and
+// Latin only -- balances, participant numbers, timers -- and set every
+// Cyrillic heading in Inter.
 export const font = {
-  heading: 'Rajdhani_700Bold',
+  heading: 'Inter_700Bold',
+  numeric: 'Rajdhani_700Bold',
   body: 'Inter_400Regular',
   bodyMedium: 'Inter_500Medium',
   bodySemiBold: 'Inter_600SemiBold',
   bodyBold: 'Inter_700Bold',
 } as const;
+
+const tabular: TextStyle['fontVariant'] = ['tabular-nums'];
+
+export const type = {
+  // Numbers only (see `font.numeric`).
+  display: { fontFamily: font.numeric, fontSize: 40, lineHeight: 44, fontVariant: tabular },
+  number: { fontFamily: font.numeric, fontSize: 24, lineHeight: 28, fontVariant: tabular },
+  title1: { fontFamily: font.heading, fontSize: 26, lineHeight: 32 },
+  title2: { fontFamily: font.heading, fontSize: 20, lineHeight: 26 },
+  headline: { fontFamily: font.bodySemiBold, fontSize: 17, lineHeight: 22 },
+  body: { fontFamily: font.body, fontSize: 16, lineHeight: 22 },
+  callout: { fontFamily: font.bodyMedium, fontSize: 15, lineHeight: 20 },
+  subhead: { fontFamily: font.body, fontSize: 14, lineHeight: 19 },
+  caption: { fontFamily: font.bodyMedium, fontSize: 13, lineHeight: 16 },
+  label: { fontFamily: font.bodySemiBold, fontSize: 12, lineHeight: 16, letterSpacing: 1, textTransform: 'uppercase' },
+} satisfies Record<string, TextStyle>;
 
 export const fontsToLoad = {
   Rajdhani_700Bold: require('@expo-google-fonts/rajdhani').Rajdhani_700Bold,

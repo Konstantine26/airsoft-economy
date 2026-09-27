@@ -67,7 +67,8 @@ const styles = StyleSheet.create({
     marginRight: 8,
   },
   reward: {
-    fontFamily: font.heading,
+    fontFamily: font.numeric,
+    fontVariant: ['tabular-nums'],
     fontSize: 14,
     color: colors.accent,
   },

@@ -8,6 +8,7 @@ import { Chip } from './Chip';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { colors, font, spacing } from '../lib/theme';
+import { formatDate } from '../lib/format';
 
 export function AdminClubsTab() {
   const [clubs, setClubs] = useState<Club[]>([]);
@@ -246,7 +247,7 @@ export function AdminClubsTab() {
             {selectedClub.description ? <Text style={styles.subtitle}>{selectedClub.description}</Text> : null}
             <Text style={styles.label}>
               {selectedClub.archived_at
-                ? `В архиве с ${new Date(selectedClub.archived_at).toLocaleDateString()}`
+                ? `В архиве с ${formatDate(selectedClub.archived_at)}`
                 : 'Не в архиве'}
             </Text>
             <View style={styles.row}>

@@ -11,6 +11,7 @@ import { TextField } from './TextField';
 import { GameManageScreen } from './GameManageScreen';
 import { ClosedProjectAccessSheet } from './ClosedProjectAccessSheet';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatDate } from '../lib/format';
 
 type GameWithPolygon = Game & { polygon: Polygon | null };
 
@@ -402,7 +403,7 @@ export function AdminProjectsTab({ onProjectsChanged }: Props) {
             </Text>
             <Text style={styles.label}>
               {selectedProject.archived_at
-                ? `В архиве с ${new Date(selectedProject.archived_at).toLocaleDateString()} — новые переводы, пополнения и списания заблокированы, баланс и история доступны как раньше`
+                ? `В архиве с ${formatDate(selectedProject.archived_at)} — новые переводы, пополнения и списания заблокированы, баланс и история доступны как раньше`
                 : 'Не в архиве'}
             </Text>
             <View style={styles.row}>

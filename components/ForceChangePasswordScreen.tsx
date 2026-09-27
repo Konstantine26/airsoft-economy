@@ -1,3 +1,4 @@
+import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
@@ -57,7 +58,7 @@ export function ForceChangePasswordScreen() {
   return (
     <View style={styles.container}>
       <View style={styles.glyph}>
-        <Text style={styles.glyphIcon}>🔒</Text>
+        <MaterialCommunityIcons name="lock-outline" size={26} color={colors.accent} />
       </View>
       <Text style={styles.title}>Смена пароля</Text>
       <Text style={styles.subtitle}>
@@ -115,9 +116,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: spacing.md,
-  },
-  glyphIcon: {
-    fontSize: 24,
   },
   title: {
     fontFamily: font.heading,

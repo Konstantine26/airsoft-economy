@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from 'react-native';
-import { colors, font, radii } from '../lib/theme';
+import { colors, font, radii, sizes } from '../lib/theme';
+
+const CHIP_HEIGHT = 34;
 
 type Props = {
   label: string;
@@ -14,6 +16,7 @@ export function Chip({ label, selected, onPress, disabled, style }: Props) {
     <Pressable
       onPress={onPress}
       disabled={disabled}
+      hitSlop={(sizes.hitMin - CHIP_HEIGHT) / 2}
       android_ripple={{ color: colors.white14 }}
       accessibilityRole="button"
       accessibilityLabel={label}
@@ -34,8 +37,9 @@ export function Chip({ label, selected, onPress, disabled, style }: Props) {
 const styles = StyleSheet.create({
   chip: {
     flexShrink: 0,
-    paddingVertical: 6,
-    paddingHorizontal: 13,
+    minHeight: CHIP_HEIGHT,
+    justifyContent: 'center',
+    paddingHorizontal: 14,
     borderRadius: radii.pill,
     borderWidth: 1,
   },
@@ -44,18 +48,18 @@ const styles = StyleSheet.create({
     borderColor: colors.accent,
   },
   unselected: {
-    backgroundColor: colors.white10,
+    backgroundColor: colors.card,
     borderColor: colors.cardBorder,
   },
   pressed: {
-    opacity: 0.7,
+    opacity: 0.85,
   },
   disabled: {
     opacity: 0.4,
   },
   label: {
     fontFamily: font.bodySemiBold,
-    fontSize: 12,
+    fontSize: 13,
   },
   labelSelected: {
     color: colors.onAccent,

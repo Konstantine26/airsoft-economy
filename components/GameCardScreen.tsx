@@ -27,6 +27,7 @@ import { GameResultsSummary } from './GameResultsSummary';
 import { PolygonMapThumbnails } from './PolygonMapThumbnails';
 import { TasksSection } from './TasksSection';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { formatDateRange } from '../lib/format';
 
 const POLYGON_TYPE_LABEL: Record<PolygonType, string> = {
   built_up: 'Застройка',
@@ -275,8 +276,7 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
       {game.game_type ? <Text style={styles.badge}>{GAME_TYPE_LABEL[game.game_type]}</Text> : null}
       {game.starts_at ? (
         <Text style={styles.subtitle}>
-          Начало: {new Date(game.starts_at).toLocaleString()}
-          {game.ends_at ? ` · Окончание: ${new Date(game.ends_at).toLocaleString()}` : ''}
+          {formatDateRange(game.starts_at, game.ends_at)}
         </Text>
       ) : null}
 
