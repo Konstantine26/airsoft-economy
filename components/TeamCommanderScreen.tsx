@@ -17,18 +17,23 @@ import { formatMoney } from '../lib/format';
 type RosterRow = { id: string; profile_id: string; full_name: string; avatar_url: string | null };
 type GameWithProject = Game & { project_name: string; polygon: Polygon | null };
 
+export type TeamCommanderTab = 'team' | 'requests' | 'games' | 'budget';
+
 type Props = {
   teams: Team[];
   projectId: string | null;
   activeProjectId: string | null;
   onTeamDisbanded: () => void;
+  // Picked from the app's bottom tab bar.
+  tab: TeamCommanderTab;
+  // Pending join requests, for the badge on the "Заявки" tab.
+  onRequestCountChange?: (count: number) => void;
 };
 
 const TEAM_AVATAR_BUCKET = 'team-avatars';
 
-export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamDisbanded }: Props) {
+export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamDisbanded, tab: activeTab, onRequestCountChange }: Props) {
   const [activeTeam, setActiveTeam] = useState<Team>(teams[0]);
-  const [activeTab, setActiveTab] = useState<'team' | 'requests' | 'games' | 'budget'>('team');
   const [addQuery, setAddQuery] = useState('');
   const [teamBalance, setTeamBalance] = useState(0);
   const [roster, setRoster] = useState<RosterRow[]>([]);
@@ -43,6 +48,10 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onRequestCountChange?.(joinRequests.length);
+  }, [joinRequests.length, onRequestCountChange]);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [disbanding, setDisbanding] = useState(false);
 
@@ -471,17 +480,6 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
     >
       <Text style={styles.title}>Моя команда</Text>
 
-      <View style={styles.subNav}>
-        <Chip label="Моя команда" selected={activeTab === 'team'} onPress={() => setActiveTab('team')} />
-        <Chip
-          label={joinRequests.length > 0 ? `Заявки (${joinRequests.length})` : 'Заявки'}
-          selected={activeTab === 'requests'}
-          onPress={() => setActiveTab('requests')}
-        />
-        <Chip label="Игры" selected={activeTab === 'games'} onPress={() => setActiveTab('games')} />
-        <Chip label="Бюджет" selected={activeTab === 'budget'} onPress={() => setActiveTab('budget')} />
-      </View>
-
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
       {activeTab === 'team' ? (
@@ -675,13 +673,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: colors.textMuted,
     marginTop: 4,
-    marginBottom: spacing.md,
-  },
-  subNav: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: spacing.sm,
     marginBottom: spacing.md,
   },
   teamIdentityRow: {

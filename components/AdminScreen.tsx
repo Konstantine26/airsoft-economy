@@ -1,63 +1,36 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { AdminUsersTab } from './AdminUsersTab';
 import { AdminTeamsTab } from './AdminTeamsTab';
 import { AdminProjectsTab } from './AdminProjectsTab';
 import { AdminClubsTab } from './AdminClubsTab';
 import { AdminMigrationsTab } from './AdminMigrationsTab';
 import { PolygonsScreen } from './PolygonsScreen';
-import { Card } from './Card';
-import { Chip } from './Chip';
-import { colors, font, spacing } from '../lib/theme';
+import { Segmented, type SegmentedItem } from './Segmented';
+import { colors, spacing } from '../lib/theme';
 
-type SubTabKey = 'home' | 'users' | 'teams' | 'projects' | 'clubs' | 'migrations';
+export type AdminTab = 'projects' | 'users' | 'teams' | 'clubs' | 'migrations';
 type ProjectsSubTab = 'projects' | 'polygons';
 
-const HOME_CARDS: { key: SubTabKey; label: string; description: string }[] = [
-  { key: 'users', label: 'Пользователи', description: 'Роли и балансы участников' },
-  { key: 'teams', label: 'Команды', description: 'Список команд, командиры, балансы' },
-  { key: 'projects', label: 'Проекты и игры', description: 'Проекты, организаторы, игры, полигоны' },
-  { key: 'clubs', label: 'Клубы', description: 'Клубы и их администраторы (пока без изоляции данных)' },
-  { key: 'migrations', label: 'Миграции', description: 'Какие supabase/*.sql применены на этом сервере' },
+const PROJECTS_SEGMENTS: SegmentedItem<ProjectsSubTab>[] = [
+  { key: 'projects', label: 'Проекты и игры' },
+  { key: 'polygons', label: 'Полигоны' },
 ];
 
 type Props = {
+  // Picked from the app's bottom tab bar ("Миграции" lives under "Ещё").
+  tab: AdminTab;
   activeProjectId: string | null;
   onProjectsChanged: () => void;
 };
 
-export function AdminScreen({ activeProjectId, onProjectsChanged }: Props) {
-  const [tab, setTab] = useState<SubTabKey>('home');
+export function AdminScreen({ tab, activeProjectId, onProjectsChanged }: Props) {
   const [projectsSubTab, setProjectsSubTab] = useState<ProjectsSubTab>('projects');
-
-  if (tab === 'home') {
-    return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.homeContent}>
-        <View style={styles.cardsList}>
-          {HOME_CARDS.map((c) => (
-            <Pressable key={c.key} onPress={() => setTab(c.key)}>
-              <Card>
-                <Text style={styles.cardTitle}>{c.label}</Text>
-                <Text style={styles.cardDescription}>{c.description}</Text>
-              </Card>
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-    );
-  }
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={() => setTab('home')}>
-        <Text style={styles.back}>‹ Админ</Text>
-      </Pressable>
-
       {tab === 'projects' ? (
-        <View style={styles.subNav}>
-          <Chip label="Проекты" selected={projectsSubTab === 'projects'} onPress={() => setProjectsSubTab('projects')} />
-          <Chip label="Полигоны" selected={projectsSubTab === 'polygons'} onPress={() => setProjectsSubTab('polygons')} />
-        </View>
+        <Segmented items={PROJECTS_SEGMENTS} value={projectsSubTab} onChange={setProjectsSubTab} style={styles.segmented} />
       ) : null}
 
       <View style={styles.body}>
@@ -79,35 +52,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  homeContent: {
-    padding: spacing.lg,
-  },
-  cardsList: {
-    gap: 10,
-  },
-  cardTitle: {
-    fontFamily: font.bodyBold,
-    fontSize: 16,
-    color: colors.text,
-  },
-  cardDescription: {
-    fontFamily: font.body,
-    fontSize: 12.5,
-    color: colors.textMuted,
-    marginTop: 4,
-  },
-  back: {
-    fontFamily: font.body,
-    color: colors.textMuted,
-    padding: spacing.lg,
-    paddingBottom: 0,
-  },
-  subNav: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.sm,
+  segmented: {
+    marginHorizontal: spacing.lg,
+    marginTop: spacing.md,
   },
   body: {
     flex: 1,

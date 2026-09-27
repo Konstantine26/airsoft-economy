@@ -5,7 +5,6 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
-import { confirmAsync } from '../lib/confirm';
 import { useSavePulse } from '../hooks/useSavePulse';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
@@ -97,15 +96,6 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
     onClose?.();
   };
 
-  // Kept away from the header on purpose: signing out mid-game drops the
-  // active game and needs a password to get back in on the field.
-  const confirmSignOut = async () => {
-    const ok = await confirmAsync('Выйти из аккаунта?', 'Чтобы вернуться, понадобятся email и пароль.', 'Выйти');
-    if (!ok) return;
-    onClose?.();
-    signOut();
-  };
-
   const content = (
     <>
       <Pressable onPress={changeAvatar} disabled={uploadingAvatar} style={styles.avatarWrap} accessibilityRole="button" accessibilityLabel="Сменить фото профиля">
@@ -152,15 +142,7 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
             <Text style={styles.switchText}>Выйти</Text>
           </Pressable>
         </>
-      ) : (
-        <Button
-          title="Выйти из аккаунта"
-          icon="logout"
-          variant="danger"
-          onPress={confirmSignOut}
-          style={styles.signOutButton}
-        />
-      )}
+      ) : null}
     </>
   );
 
@@ -282,9 +264,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: spacing.xl,
     marginBottom: spacing.md,
-  },
-  signOutButton: {
-    marginTop: spacing.xxxl,
   },
   switchText: {
     fontFamily: font.body,

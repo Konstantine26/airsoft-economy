@@ -18,9 +18,11 @@ type TeamWithRoster = {
   participants: ParticipantEntry[];
 };
 
-export function SideCommanderScreen({ sides }: { sides: CommandedSide[] }) {
+export type SideCommanderTab = 'side' | 'teams' | 'tasks';
+
+// `tab` is picked from the app's bottom tab bar.
+export function SideCommanderScreen({ sides, tab: activeTab }: { sides: CommandedSide[]; tab: SideCommanderTab }) {
   const [activeSide, setActiveSide] = useState<CommandedSide | null>(sides[0] ?? null);
-  const [activeTab, setActiveTab] = useState<'side' | 'teams' | 'tasks'>('side');
   const [gameLabel, setGameLabel] = useState('');
   const [revivalEnabled, setRevivalEnabled] = useState(false);
   const [revivalModalOpen, setRevivalModalOpen] = useState(false);
@@ -119,12 +121,6 @@ export function SideCommanderScreen({ sides }: { sides: CommandedSide[] }) {
       )}
 
       <Text style={styles.subtitle}>{gameLabel}</Text>
-
-      <View style={styles.subNav}>
-        <Chip label="Моя сторона" selected={activeTab === 'side'} onPress={() => setActiveTab('side')} />
-        <Chip label="Команды" selected={activeTab === 'teams'} onPress={() => setActiveTab('teams')} />
-        <Chip label="Задания" selected={activeTab === 'tasks'} onPress={() => setActiveTab('tasks')} />
-      </View>
 
       {revivalEnabled && activeSide.project_id ? (
         <>
@@ -279,12 +275,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   chips: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: spacing.md,
-  },
-  subNav: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,

@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, motion, radii, spacing } from '../lib/theme';
 
 type ToastTone = 'success' | 'info' | 'danger';
@@ -16,6 +17,9 @@ export type ToastOptions = {
 };
 
 type ToastState = ToastOptions & { id: number };
+
+// Clears the bottom tab bar (~56pt) so a toast never covers navigation.
+const TAB_BAR_CLEARANCE = 68;
 
 const ToastContext = createContext<(options: ToastOptions) => void>(() => {});
 
@@ -50,6 +54,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastView({ toast, onDone }: { toast: ToastState; onDone: () => void }) {
+  const insets = useSafeAreaInsets();
   const anim = useRef(new Animated.Value(0)).current;
   const tone = toast.tone ?? 'success';
   const hasAction = !!(toast.actionLabel && toast.onAction);
@@ -69,7 +74,7 @@ function ToastView({ toast, onDone }: { toast: ToastState; onDone: () => void })
   return (
     <Animated.View
       pointerEvents="box-none"
-      style={[styles.wrap, { bottom: spacing.lg, opacity: anim, transform: [{ translateY }] }]}
+      style={[styles.wrap, { bottom: insets.bottom + TAB_BAR_CLEARANCE, opacity: anim, transform: [{ translateY }] }]}
     >
       <View style={styles.toast} accessibilityLiveRegion="polite">
         <MaterialCommunityIcons name={ICONS[tone].name} size={20} color={ICONS[tone].color} />

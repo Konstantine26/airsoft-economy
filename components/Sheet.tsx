@@ -19,6 +19,7 @@ export function Sheet({ visible, onRequestClose, children, style }: Props) {
             style={[styles.sheet, { paddingBottom: 20 + insets.bottom }, style]}
             onPress={(e) => e.stopPropagation()}
           >
+            <View style={styles.handle} />
             {children}
           </Pressable>
         </Pressable>
@@ -37,11 +38,18 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   sheet: {
-    backgroundColor: colors.bg,
-    borderTopWidth: 1,
-    borderTopColor: colors.cardBorder,
+    backgroundColor: colors.card,
     borderTopLeftRadius: radii.sheet,
     borderTopRightRadius: radii.sheet,
     padding: 20,
+    paddingTop: 8,
+  },
+  handle: {
+    alignSelf: 'center',
+    width: 38,
+    height: 5,
+    borderRadius: 3,
+    backgroundColor: colors.cardBorder,
+    marginBottom: 14,
   },
 });

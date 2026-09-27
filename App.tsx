@@ -72,7 +72,8 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <SafeAreaView style={styles.container}>
+      {/* No bottom edge: the tab bar pads itself so its background runs under the home indicator. */}
+      <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
         <ToastProvider>
           {ready ? (
             <AuthProvider key={`${server.id}:${server.url}`}>

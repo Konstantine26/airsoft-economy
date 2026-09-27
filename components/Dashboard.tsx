@@ -1,17 +1,19 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
 import { Avatar } from './Avatar';
-import { Chip } from './Chip';
-import { TabBar, type TabBarItem } from './TabBar';
-import { Segmented, type SegmentedItem } from './Segmented';
-import { AdminScreen } from './AdminScreen';
+import { BottomTabBar, type BottomTabItem } from './BottomTabBar';
+import { ContextSheet, projectInitials } from './ContextSheet';
+import { MoreScreen, type MoreItem } from './MoreScreen';
+import { ScreenHeader } from './ScreenHeader';
+import { AdminScreen, type AdminTab } from './AdminScreen';
+import { AdminMigrationsTab } from './AdminMigrationsTab';
 import { OrganizerScreen } from './OrganizerScreen';
-import { TeamCommanderScreen } from './TeamCommanderScreen';
-import { SideCommanderScreen } from './SideCommanderScreen';
+import { TeamCommanderScreen, type TeamCommanderTab } from './TeamCommanderScreen';
+import { SideCommanderScreen, type SideCommanderTab } from './SideCommanderScreen';
 import { PlayerHomeScreen } from './PlayerHomeScreen';
 import { PlayerGamesScreen } from './PlayerGamesScreen';
 import { PlayerTeamScreen } from './PlayerTeamScreen';
@@ -23,20 +25,69 @@ import { HelpScreen } from './HelpScreen';
 import { NotificationsScreen } from './NotificationsScreen';
 import { ProfileScreen } from './ProfileScreen';
 import { OnboardingCarousel } from './OnboardingCarousel';
-import { colors, font, sizes, spacing } from '../lib/theme';
+import { colors, font, radii, sizes, spacing } from '../lib/theme';
 import { ROLE_META, type RoleKey } from '../lib/roles';
 import { hasSeenOnboarding, markOnboardingSeen } from '../lib/onboardingStorage';
 import { getActiveGame, setActiveGame as persistActiveGame, clearActiveGame as persistClearActiveGame, type ActiveGame } from '../lib/activeGameStorage';
 import type { Project } from '../lib/database.types';
 
-type PlayerTab = 'home' | 'games' | 'team' | 'wallet' | 'stats';
+type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
 type OrganizerTab = 'overview' | 'games' | 'economy';
+type TraderTab = 'trade';
+type MoreTab = 'more';
+type AnyTab = PlayerTab | OrganizerTab | TeamCommanderTab | SideCommanderTab | TraderTab | AdminTab | MoreTab;
 
-const ORGANIZER_SEGMENTS: SegmentedItem<OrganizerTab>[] = [
-  { key: 'overview', label: 'Обзор' },
-  { key: 'games', label: 'Игры' },
-  { key: 'economy', label: 'Экономика' },
-];
+// Pages reached from "Ещё" that open inside the More tab, with a back
+// button, instead of taking a slot in the tab bar.
+type MoreSubpage = 'stats' | 'migrations';
+
+const MORE: BottomTabItem<MoreTab> = { key: 'more', label: 'Ещё', icon: 'dots-horizontal' };
+
+const TABS: { [R in RoleKey]: BottomTabItem<AnyTab>[] } = {
+  player: [
+    { key: 'home', label: 'Главная', icon: 'home-outline', activeIcon: 'home' },
+    { key: 'games', label: 'Игры', icon: 'calendar-month-outline', activeIcon: 'calendar-month' },
+    { key: 'team', label: 'Команда', icon: 'account-group-outline', activeIcon: 'account-group' },
+    { key: 'wallet', label: 'Кошелёк', icon: 'wallet-outline', activeIcon: 'wallet' },
+    MORE,
+  ],
+  organizer: [
+    { key: 'overview', label: 'Обзор', icon: 'view-dashboard-outline', activeIcon: 'view-dashboard' },
+    { key: 'games', label: 'Игры', icon: 'calendar-month-outline', activeIcon: 'calendar-month' },
+    { key: 'economy', label: 'Экономика', icon: 'cash-multiple' },
+    MORE,
+  ],
+  teamCommander: [
+    { key: 'team', label: 'Команда', icon: 'account-group-outline', activeIcon: 'account-group' },
+    { key: 'requests', label: 'Заявки', icon: 'account-plus-outline', activeIcon: 'account-plus' },
+    { key: 'games', label: 'Игры', icon: 'calendar-month-outline', activeIcon: 'calendar-month' },
+    { key: 'budget', label: 'Бюджет', icon: 'wallet-outline', activeIcon: 'wallet' },
+    MORE,
+  ],
+  sideCommander: [
+    { key: 'side', label: 'Сторона', icon: 'flag-outline', activeIcon: 'flag' },
+    { key: 'teams', label: 'Команды', icon: 'account-multiple-outline', activeIcon: 'account-multiple' },
+    { key: 'tasks', label: 'Задания', icon: 'clipboard-list-outline', activeIcon: 'clipboard-list' },
+    MORE,
+  ],
+  trader: [{ key: 'trade', label: 'Торговля', icon: 'storefront-outline', activeIcon: 'storefront' }, MORE],
+  admin: [
+    { key: 'projects', label: 'Проекты', icon: 'folder-outline', activeIcon: 'folder' },
+    { key: 'users', label: 'Люди', icon: 'account-multiple-outline', activeIcon: 'account-multiple' },
+    { key: 'teams', label: 'Команды', icon: 'account-group-outline', activeIcon: 'account-group' },
+    { key: 'clubs', label: 'Клубы', icon: 'office-building-outline', activeIcon: 'office-building' },
+    MORE,
+  ],
+};
+
+const INITIAL_TABS: Record<RoleKey, AnyTab> = {
+  player: 'home',
+  organizer: 'overview',
+  teamCommander: 'team',
+  sideCommander: 'side',
+  trader: 'trade',
+  admin: 'projects',
+};
 
 export function Dashboard() {
   const { profile } = useAuth();
@@ -44,12 +95,19 @@ export function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
-  const [playerTab, setPlayerTab] = useState<PlayerTab>('home');
-  const [organizerTab, setOrganizerTab] = useState<OrganizerTab>('overview');
+  // Each role remembers its own tab, so switching roles and back lands
+  // where you left off.
+  const [tabs, setTabs] = useState<Record<RoleKey, AnyTab>>(INITIAL_TABS);
+  // Panes are mounted on first visit and then kept (hidden) so scroll
+  // position, typed search and loaded lists survive tab switches.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set());
+  const [moreSubpage, setMoreSubpage] = useState<MoreSubpage | null>(null);
+  const [contextVisible, setContextVisible] = useState(false);
   const [helpVisible, setHelpVisible] = useState(false);
   const [profileVisible, setProfileVisible] = useState(false);
   const [notificationsVisible, setNotificationsVisible] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [joinRequestCount, setJoinRequestCount] = useState(0);
   const [onboardingRole, setOnboardingRole] = useState<RoleKey | null>(null);
   const [activeGame, setActiveGame] = useState<ActiveGame | null>(null);
 
@@ -169,6 +227,29 @@ export function Dashboard() {
     setOnboardingRole(role);
   }, []);
 
+  const activeTab = activeRole ? tabs[activeRole] : null;
+
+  useEffect(() => {
+    if (!activeRole || !activeTab) return;
+    const key = paneKey(activeRole, activeTab);
+    setVisited((prev) => (prev.has(key) ? prev : new Set(prev).add(key)));
+  }, [activeRole, activeTab]);
+
+  const selectTab = useCallback(
+    (tab: AnyTab) => {
+      if (!activeRole) return;
+      // Tapping "Ещё" again pops back to its root, like a native tab bar.
+      if (tab === 'more' && tabs[activeRole] === 'more') setMoreSubpage(null);
+      setTabs((prev) => ({ ...prev, [activeRole]: tab }));
+    },
+    [activeRole, tabs]
+  );
+
+  const selectRole = useCallback((role: RoleKey) => {
+    setActiveRole(role);
+    setMoreSubpage(null);
+  }, []);
+
   const activeProject = useMemo(() => projects.find((p) => p.id === activeProjectId) ?? null, [projects, activeProjectId]);
   const economyProjectId = activeProject?.economy_enabled ? activeProjectId : null;
 
@@ -177,12 +258,7 @@ export function Dashboard() {
     [capabilities.commandedSides, activeProjectId]
   );
 
-  const roleItems = useMemo<TabBarItem<RoleKey>[]>(
-    () => availableRoles.map((role) => ({ key: role, label: ROLE_META[role].label, icon: ROLE_META[role].icon })),
-    [availableRoles]
-  );
-
-  if (!profile || capabilities.loading || !activeRole) {
+  if (!profile || capabilities.loading || !activeRole || !activeTab) {
     return (
       <View style={styles.center}>
         <ActivityIndicator color={colors.accent} />
@@ -190,32 +266,76 @@ export function Dashboard() {
     );
   }
 
+  const inGame = !!activeGame;
+  const tabItems = TABS[activeRole].map((item) =>
+    activeRole === 'teamCommander' && item.key === 'requests' ? { ...item, badge: joinRequestCount } : item
+  );
+  const canSwitchContext = availableRoles.length > 1 || projects.length > 1;
+
+  const moreItems: MoreItem[] = [];
+  if (activeRole === 'player') {
+    moreItems.push({
+      key: 'stats',
+      label: 'Статистика',
+      icon: 'chart-box-outline',
+      subtitle: 'Игры, задания, доходы и расходы',
+      onPress: () => setMoreSubpage('stats'),
+    });
+  }
+  if (activeRole === 'admin') {
+    moreItems.push({
+      key: 'migrations',
+      label: 'Миграции',
+      icon: 'database-cog-outline',
+      subtitle: 'Какие supabase/*.sql применены на сервере',
+      onPress: () => setMoreSubpage('migrations'),
+    });
+  }
+
+  // Roles whose screen takes the tab as a prop share one pane, so their
+  // loaded data is kept across tabs instead of being refetched.
+  const singlePaneRole = activeRole === 'teamCommander' || activeRole === 'sideCommander' || activeRole === 'admin';
+  const showPane = (role: RoleKey, tab: AnyTab) => visited.has(paneKey(role, tab)) || (role === activeRole && tab === activeTab);
+  const isActive = (role: RoleKey, tab?: AnyTab) =>
+    role === activeRole && (tab === undefined ? activeTab !== 'more' : activeTab === tab);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.brand}>
-          <View style={styles.brandGlyph}>
-            <MaterialCommunityIcons name="sword-cross" size={15} color={colors.accent} />
+        <Pressable
+          onPress={() => setContextVisible(true)}
+          disabled={!canSwitchContext}
+          style={({ pressed }) => [styles.contextPill, pressed && styles.pressed]}
+          accessibilityRole="button"
+          accessibilityLabel={`${activeProject?.name ?? 'Без проекта'}, ${ROLE_META[activeRole].label}. Сменить проект или роль`}
+        >
+          <View style={styles.contextMark}>
+            {activeProject ? (
+              <Text style={styles.contextMarkText}>{projectInitials(activeProject.name)}</Text>
+            ) : (
+              <MaterialCommunityIcons name="sword-cross" size={15} color={colors.accent} />
+            )}
           </View>
-          <Text style={styles.brandName}>Airsoft Economy</Text>
-        </View>
+          <View style={styles.contextText}>
+            <Text style={styles.contextTitle} numberOfLines={1}>
+              {activeProject?.name ?? 'Airsoft Economy'}
+            </Text>
+            <Text style={styles.contextSubtitle} numberOfLines={1}>
+              {ROLE_META[activeRole].label}
+              {activeProject?.archived_at ? ' · архив' : ''}
+            </Text>
+          </View>
+          {canSwitchContext ? <MaterialCommunityIcons name="chevron-down" size={18} color={colors.textMuted} /> : null}
+        </Pressable>
 
         <View style={styles.headerRight}>
-          <Pressable
-            onPress={() => setHelpVisible(true)}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel="Открыть справку"
-          >
-            <MaterialCommunityIcons name="help-circle-outline" size={22} color={colors.textMuted} />
-          </Pressable>
           <Pressable
             onPress={() => setNotificationsVisible(true)}
             style={styles.iconButton}
             accessibilityRole="button"
             accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
           >
-            <MaterialCommunityIcons name="bell-outline" size={22} color={colors.textMuted} />
+            <MaterialCommunityIcons name="bell-outline" size={23} color={colors.textMuted} />
             {unreadCount > 0 ? (
               <View style={styles.notificationDot}>
                 <Text style={styles.notificationDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -233,103 +353,157 @@ export function Dashboard() {
         </View>
       </View>
 
-      {roleItems.length > 1 ? <TabBar items={roleItems} activeKey={activeRole} onChange={setActiveRole} /> : null}
-
-      {projects.length > 0 ? (
-        <View style={styles.projectBar}>
-          <Text style={styles.projectBarLabel}>Проект:</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            <View style={styles.chips}>
-              {projects.map((project) => (
-                <Chip
-                  key={project.id}
-                  label={project.archived_at ? `${project.name} · архив` : project.name}
-                  selected={activeProjectId === project.id}
-                  onPress={() => setActiveProjectId(project.id)}
-                  disabled={!!activeGame && project.id !== activeGame.projectId}
-                />
-              ))}
-            </View>
-          </ScrollView>
+      {inGame ? (
+        <View style={styles.liveStrip} accessibilityRole="text">
+          <View style={styles.liveDot} />
+          <Text style={styles.liveText}>В ИГРЕ</Text>
         </View>
       ) : null}
 
       <View style={styles.body}>
-        {activeRole === 'player' ? (
-          <>
-            <View style={styles.subNav}>
-              <Chip label="Главная" selected={playerTab === 'home'} onPress={() => setPlayerTab('home')} />
-              <Chip label="Игры" selected={playerTab === 'games'} onPress={() => setPlayerTab('games')} />
-              <Chip label="Моя команда" selected={playerTab === 'team'} onPress={() => setPlayerTab('team')} />
-              <Chip label="Деньги" selected={playerTab === 'wallet'} onPress={() => setPlayerTab('wallet')} />
-              <Chip label="Статистика" selected={playerTab === 'stats'} onPress={() => setPlayerTab('stats')} />
-            </View>
-            {playerTab === 'home' ? (
-              <PlayerHomeScreen
-                ownMembership={capabilities.ownMembership}
-                activeProjectId={activeProjectId}
-                activeGame={activeGame}
-                onStartGame={startGame}
-                onEndGame={endGame}
-                onGoToGames={() => setPlayerTab('games')}
-                onOpenGame={openGame}
-              />
-            ) : null}
-            {playerTab === 'games' ? (
-              <PlayerGamesScreen
-                ownMembership={capabilities.ownMembership}
-                activeProjectId={activeProjectId}
-                onOpenGame={openGame}
-              />
-            ) : null}
-            {playerTab === 'team' ? (
-              <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
-            ) : null}
-            {playerTab === 'wallet' ? <WalletScreen projectId={economyProjectId} /> : null}
-            {playerTab === 'stats' ? (
-              <PlayerStatsScreen activeProjectId={activeProjectId} economyProjectId={economyProjectId} />
-            ) : null}
-          </>
-        ) : null}
-
-        {activeRole === 'organizer' ? (
-          <>
-            <Segmented
-              items={ORGANIZER_SEGMENTS}
-              value={organizerTab}
-              onChange={setOrganizerTab}
-              style={styles.segmented}
+        {/* Player */}
+        {showPane('player', 'home') ? (
+          <Pane active={isActive('player', 'home')}>
+            <PlayerHomeScreen
+              ownMembership={capabilities.ownMembership}
+              activeProjectId={activeProjectId}
+              activeGame={activeGame}
+              onStartGame={startGame}
+              onEndGame={endGame}
+              onGoToGames={() => selectTab('games')}
+              onOpenGame={openGame}
             />
-            {organizerTab === 'overview' || organizerTab === 'games' ? (
-              <OrganizerScreen view={organizerTab} activeProjectId={activeProjectId} />
-            ) : null}
-            {organizerTab === 'economy' ? <TeamsScreen projectId={economyProjectId} /> : null}
-          </>
+          </Pane>
+        ) : null}
+        {showPane('player', 'games') ? (
+          <Pane active={isActive('player', 'games')}>
+            <PlayerGamesScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} onOpenGame={openGame} />
+          </Pane>
+        ) : null}
+        {showPane('player', 'team') ? (
+          <Pane active={isActive('player', 'team')}>
+            <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
+          </Pane>
+        ) : null}
+        {showPane('player', 'wallet') ? (
+          <Pane active={isActive('player', 'wallet')}>
+            <WalletScreen projectId={economyProjectId} />
+          </Pane>
         ) : null}
 
-        {activeRole === 'teamCommander' ? (
-          <TeamCommanderScreen
-            teams={capabilities.commandedTeams}
-            projectId={economyProjectId}
-            activeProjectId={activeProjectId}
-            onTeamDisbanded={capabilities.refresh}
-          />
+        {/* Organizer */}
+        {showPane('organizer', 'overview') ? (
+          <Pane active={isActive('organizer', 'overview')}>
+            <OrganizerScreen view="overview" activeProjectId={activeProjectId} />
+          </Pane>
         ) : null}
-        {activeRole === 'sideCommander' ? <SideCommanderScreen sides={projectSides} /> : null}
-        {activeRole === 'trader' ? (
-          <TraderScreen traderGames={capabilities.traderGames} activeProjectId={activeProjectId} />
+        {showPane('organizer', 'games') ? (
+          <Pane active={isActive('organizer', 'games')}>
+            <OrganizerScreen view="games" activeProjectId={activeProjectId} />
+          </Pane>
         ) : null}
-        {activeRole === 'admin' ? (
-          <AdminScreen activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
+        {showPane('organizer', 'economy') ? (
+          <Pane active={isActive('organizer', 'economy')}>
+            <TeamsScreen projectId={economyProjectId} />
+          </Pane>
+        ) : null}
+
+        {/* Roles with one screen that switches its own sections */}
+        {availableRoles.includes('teamCommander') && hasVisitedRole(visited, 'teamCommander', activeRole) ? (
+          <Pane active={isActive('teamCommander')}>
+            <TeamCommanderScreen
+              tab={tabs.teamCommander as TeamCommanderTab}
+              teams={capabilities.commandedTeams}
+              projectId={economyProjectId}
+              activeProjectId={activeProjectId}
+              onTeamDisbanded={capabilities.refresh}
+              onRequestCountChange={setJoinRequestCount}
+            />
+          </Pane>
+        ) : null}
+        {availableRoles.includes('sideCommander') && hasVisitedRole(visited, 'sideCommander', activeRole) ? (
+          <Pane active={isActive('sideCommander')}>
+            <SideCommanderScreen key={activeProjectId ?? 'none'} tab={tabs.sideCommander as SideCommanderTab} sides={projectSides} />
+          </Pane>
+        ) : null}
+        {showPane('trader', 'trade') ? (
+          <Pane active={isActive('trader', 'trade')}>
+            <TraderScreen traderGames={capabilities.traderGames} activeProjectId={activeProjectId} />
+          </Pane>
+        ) : null}
+        {availableRoles.includes('admin') && hasVisitedRole(visited, 'admin', activeRole) ? (
+          <Pane active={isActive('admin')}>
+            <AdminScreen tab={tabs.admin as AdminTab} activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
+          </Pane>
+        ) : null}
+
+        {/* Ещё -- shared by every role, rebuilt per role (its items differ) */}
+        {activeTab === 'more' ? (
+          <Pane active>
+            {moreSubpage === 'stats' ? (
+              <View style={styles.subpage}>
+                <ScreenHeader title="Статистика" backLabel="Ещё" onBack={() => setMoreSubpage(null)} />
+                <PlayerStatsScreen activeProjectId={activeProjectId} economyProjectId={economyProjectId} />
+              </View>
+            ) : moreSubpage === 'migrations' ? (
+              <View style={styles.subpage}>
+                <ScreenHeader title="Миграции" backLabel="Ещё" onBack={() => setMoreSubpage(null)} />
+                <AdminMigrationsTab />
+              </View>
+            ) : (
+              <MoreScreen
+                roleItems={moreItems}
+                unreadCount={unreadCount}
+                inGame={inGame}
+                onOpenProfile={() => setProfileVisible(true)}
+                onOpenNotifications={() => setNotificationsVisible(true)}
+                onOpenHelp={() => setHelpVisible(true)}
+              />
+            )}
+          </Pane>
         ) : null}
       </View>
 
+      <BottomTabBar
+        items={tabItems}
+        activeKey={activeTab}
+        onChange={selectTab}
+        tint={inGame && activeRole === 'player' ? colors.live : colors.accent}
+      />
+
+      <ContextSheet
+        visible={contextVisible}
+        onClose={() => setContextVisible(false)}
+        projects={projects}
+        activeProjectId={activeProjectId}
+        onSelectProject={setActiveProjectId}
+        roles={availableRoles}
+        activeRole={activeRole}
+        onSelectRole={selectRole}
+        lockedToProjectId={activeGame?.projectId ?? null}
+      />
       <HelpScreen visible={helpVisible} onClose={() => setHelpVisible(false)} onReplayOnboarding={replayOnboarding} />
       <NotificationsScreen visible={notificationsVisible} onClose={closeNotifications} />
       <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <OnboardingCarousel role={onboardingRole} onClose={closeOnboarding} />
     </View>
   );
+}
+
+function paneKey(role: RoleKey, tab: AnyTab) {
+  return `${role}:${tab}`;
+}
+
+function hasVisitedRole(visited: Set<string>, role: RoleKey, activeRole: RoleKey) {
+  if (role === activeRole) return true;
+  for (const key of visited) if (key.startsWith(`${role}:`)) return true;
+  return false;
+}
+
+// Keeps a visited tab mounted but out of layout, so coming back to it is
+// instant and doesn't lose scroll position or half-typed input.
+function Pane({ active, children }: { active: boolean; children: React.ReactNode }) {
+  return <View style={[styles.pane, !active && styles.paneHidden]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -345,41 +519,59 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingTop: 6,
-    paddingBottom: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
+    gap: spacing.sm,
+    paddingLeft: spacing.md,
+    paddingRight: spacing.xs,
+    paddingVertical: 6,
   },
-  brand: {
+  pressed: {
+    opacity: 0.7,
+  },
+  contextPill: {
+    flexShrink: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    flexShrink: 1,
-  },
-  brandGlyph: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: colors.accentSoft,
+    gap: spacing.sm,
+    minHeight: sizes.hitMin,
+    backgroundColor: colors.card,
     borderWidth: 1,
-    borderColor: colors.accentBorder,
+    borderColor: colors.cardBorder,
+    borderRadius: radii.md,
+    paddingLeft: 5,
+    paddingRight: spacing.sm + 2,
+    paddingVertical: 5,
+  },
+  contextMark: {
+    width: 32,
+    height: 32,
+    borderRadius: radii.sm,
+    backgroundColor: colors.accentSoft,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandName: {
-    fontFamily: font.heading,
-    fontSize: 16,
-    color: colors.text,
+  contextMarkText: {
+    fontFamily: font.bodyBold,
+    fontSize: 13,
+    color: colors.accent,
+  },
+  contextText: {
     flexShrink: 1,
+  },
+  contextTitle: {
+    fontFamily: font.bodySemiBold,
+    fontSize: 14.5,
+    color: colors.text,
+  },
+  contextSubtitle: {
+    fontFamily: font.body,
+    fontSize: 12,
+    color: colors.textMuted,
   },
   headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
-    flexShrink: 0,
+    marginLeft: 'auto',
   },
   iconButton: {
     width: sizes.hitMin,
@@ -406,36 +598,36 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.text,
   },
-  projectBar: {
+  liveStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    gap: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.cardBorder,
-  },
-  projectBarLabel: {
-    fontFamily: font.body,
-    fontSize: 12,
-    color: colors.textMuted,
-  },
-  chips: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  subNav: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
+    gap: spacing.sm,
+    backgroundColor: colors.live,
     paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
+    paddingVertical: 5,
   },
-  segmented: {
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.md,
+  liveDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: colors.onLive,
+  },
+  liveText: {
+    fontFamily: font.bodyBold,
+    fontSize: 12,
+    letterSpacing: 0.6,
+    color: colors.onLive,
   },
   body: {
+    flex: 1,
+  },
+  pane: {
+    flex: 1,
+  },
+  paneHidden: {
+    display: 'none',
+  },
+  subpage: {
     flex: 1,
   },
 });

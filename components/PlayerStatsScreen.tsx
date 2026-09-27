@@ -128,8 +128,6 @@ export function PlayerStatsScreen({ activeProjectId, economyProjectId }: Props) 
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.accent} colors={[colors.accent]} />}
     >
-      <Text style={styles.title}>Статистика</Text>
-
       <View style={styles.statsRow}>
         <Card style={styles.statCard}>
           <Text style={styles.statNumber}>{gamesPlayed}</Text>
@@ -210,12 +208,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.bg,
-  },
-  title: {
-    fontFamily: font.heading,
-    fontSize: 19,
-    color: colors.text,
-    marginBottom: spacing.md,
   },
   label: {
     fontFamily: font.body,
