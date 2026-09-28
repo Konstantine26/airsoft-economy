@@ -250,11 +250,11 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
       <View style={styles.container}>
         {onEndGame ? (
           <Button title="Окончить игру" variant="danger" onPress={handleEndGame} style={styles.endGameButton} />
-        ) : (
-          <Pressable onPress={onClose}>
+        ) : onClose ? (
+          <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Назад">
             <Text style={styles.back}>‹ Назад</Text>
           </Pressable>
-        )}
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : <Text style={styles.label}>Игра не найдена</Text>}
       </View>
     );
@@ -264,11 +264,11 @@ export function GameCardScreen({ gameId, ownMembership, onClose, showRegistratio
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       {onEndGame ? (
         <Button title="Окончить игру" variant="danger" onPress={handleEndGame} style={styles.endGameButton} />
-      ) : (
-        <Pressable onPress={onClose}>
+      ) : onClose ? (
+        <Pressable onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Назад">
           <Text style={styles.back}>‹ Назад</Text>
         </Pressable>
-      )}
+      ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 

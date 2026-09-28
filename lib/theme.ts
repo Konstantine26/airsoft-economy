@@ -38,6 +38,67 @@ export const colors = {
   teamGradientBorder: '#3F5591',
 } as const;
 
+// In-game screens can switch between the regular dark palette and "Солнце",
+// a light high-contrast one for direct sunlight (see lib/sunMode.ts). Only
+// screens that read from `useSunMode().palette` follow the switch.
+export type GamePalette = {
+  bg: string;
+  card: string;
+  surface2: string;
+  border: string;
+  text: string;
+  textMuted: string;
+  textDim: string;
+  accent: string;
+  accentSoft: string;
+  onAccent: string;
+  live: string;
+  liveSoft: string;
+  onLive: string;
+  success: string;
+  successSoft: string;
+  danger: string;
+};
+
+export const gamePalettes: { dark: GamePalette; sun: GamePalette } = {
+  dark: {
+    bg: colors.bg,
+    card: colors.card,
+    surface2: colors.surface2,
+    border: colors.cardBorder,
+    text: colors.text,
+    textMuted: colors.textMuted,
+    textDim: colors.textDim,
+    accent: colors.accent,
+    accentSoft: colors.accentSoft,
+    onAccent: colors.onAccent,
+    live: colors.live,
+    liveSoft: colors.liveSoft,
+    onLive: colors.onLive,
+    success: colors.success,
+    successSoft: colors.successSoft,
+    danger: colors.danger,
+  },
+  sun: {
+    bg: '#F3F4F1',
+    card: '#FFFFFF',
+    surface2: '#E6E9E5',
+    border: '#B9BFBA',
+    text: '#0B0D0E',
+    textMuted: '#3A4245',
+    textDim: '#5C6466',
+    accent: '#1F4FC4',
+    accentSoft: 'rgba(31, 79, 196, 0.12)',
+    onAccent: '#FFFFFF',
+    live: '#B86A00',
+    liveSoft: 'rgba(184, 106, 0, 0.12)',
+    onLive: '#FFFFFF',
+    success: '#137A45',
+    successSoft: 'rgba(19, 122, 69, 0.12)',
+    danger: '#C23A26',
+  },
+};
+
 export const radii = {
   sm: 8,
   md: 12,

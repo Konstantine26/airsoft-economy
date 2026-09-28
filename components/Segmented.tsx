@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { hapticSelection } from '../lib/haptics';
 import { colors, font, radii, sizes } from '../lib/theme';
 
 export type SegmentedItem<T extends string> = {
@@ -26,7 +27,10 @@ export function Segmented<T extends string>({ items, value, onChange, style }: P
         return (
           <Pressable
             key={item.key}
-            onPress={() => onChange(item.key)}
+            onPress={() => {
+              if (!active) hapticSelection();
+              onChange(item.key);
+            }}
             accessibilityRole="tab"
             accessibilityState={{ selected: active }}
             accessibilityLabel={item.count ? `${item.label}, ${item.count}` : item.label}

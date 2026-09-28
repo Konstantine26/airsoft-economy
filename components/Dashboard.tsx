@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
@@ -15,6 +15,10 @@ import { OrganizerScreen } from './OrganizerScreen';
 import { TeamCommanderScreen, type TeamCommanderTab } from './TeamCommanderScreen';
 import { SideCommanderScreen, type SideCommanderTab } from './SideCommanderScreen';
 import { PlayerHomeScreen } from './PlayerHomeScreen';
+import { InGameScreen } from './InGameScreen';
+import { GameCardScreen } from './GameCardScreen';
+import { TasksSection } from './TasksSection';
+import { LiveStrip } from './LiveStrip';
 import { PlayerGamesScreen } from './PlayerGamesScreen';
 import { PlayerTeamScreen } from './PlayerTeamScreen';
 import { PlayerStatsScreen } from './PlayerStatsScreen';
@@ -28,10 +32,15 @@ import { OnboardingCarousel } from './OnboardingCarousel';
 import { colors, font, radii, sizes, spacing } from '../lib/theme';
 import { ROLE_META, type RoleKey } from '../lib/roles';
 import { hasSeenOnboarding, markOnboardingSeen } from '../lib/onboardingStorage';
+import { confirmAsync } from '../lib/confirm';
+import { hapticHeavy, hapticWarning } from '../lib/haptics';
+import { useSunMode } from '../lib/sunMode';
 import { getActiveGame, setActiveGame as persistActiveGame, clearActiveGame as persistClearActiveGame, type ActiveGame } from '../lib/activeGameStorage';
 import type { Project } from '../lib/database.types';
 
-type PlayerTab = 'home' | 'games' | 'team' | 'wallet';
+// Outside a game the player plans; inside one the tab bar switches to what
+// matters on the field. Wallet and "Ещё" exist in both sets.
+type PlayerTab = 'home' | 'games' | 'team' | 'wallet' | 'game' | 'tasks' | 'briefing';
 type OrganizerTab = 'overview' | 'games' | 'economy';
 type TraderTab = 'trade';
 type MoreTab = 'more';
@@ -80,6 +89,16 @@ const TABS: { [R in RoleKey]: BottomTabItem<AnyTab>[] } = {
   ],
 };
 
+const PLAYER_GAME_TABS: BottomTabItem<AnyTab>[] = [
+  { key: 'game', label: 'Игра', icon: 'crosshairs-gps' },
+  { key: 'tasks', label: 'Задания', icon: 'clipboard-text-outline', activeIcon: 'clipboard-text' },
+  { key: 'wallet', label: 'Кошелёк', icon: 'wallet-outline', activeIcon: 'wallet' },
+  { key: 'briefing', label: 'Брифинг', icon: 'map-outline', activeIcon: 'map' },
+  MORE,
+];
+
+const playerTabsFor = (inGame: boolean) => (inGame ? PLAYER_GAME_TABS : TABS.player);
+
 const INITIAL_TABS: Record<RoleKey, AnyTab> = {
   player: 'home',
   organizer: 'overview',
@@ -92,6 +111,7 @@ const INITIAL_TABS: Record<RoleKey, AnyTab> = {
 export function Dashboard() {
   const { profile } = useAuth();
   const capabilities = useCapabilities();
+  const { sun, palette } = useSunMode();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
@@ -140,11 +160,22 @@ export function Dashboard() {
     if (activeGame) setActiveProjectId(activeGame.projectId);
   }, [activeGame]);
 
+  // A game restored from storage on launch (or ended elsewhere) must land
+  // on a tab that exists in the matching tab set.
+  useEffect(() => {
+    const allowed = playerTabsFor(!!activeGame).map((t) => t.key);
+    setTabs((prev) =>
+      allowed.includes(prev.player) ? prev : { ...prev, player: activeGame ? 'game' : 'home' }
+    );
+  }, [activeGame]);
+
   const startGame = useCallback(
     (game: { id: string; project_id: string }) => {
       if (!profile) return;
       const next: ActiveGame = { gameId: game.id, projectId: game.project_id };
+      hapticHeavy();
       setActiveGame(next);
+      setTabs((prev) => ({ ...prev, player: 'game' }));
       persistActiveGame(profile.id, next);
       // Best-effort: lets the organizer see who has checked in
       // (GameManageScreen). The local state above is the source of truth
@@ -157,9 +188,21 @@ export function Dashboard() {
   const endGame = useCallback(() => {
     if (!profile) return;
     setActiveGame(null);
+    setTabs((prev) => ({ ...prev, player: 'home' }));
     supabase.from('profiles').update({ active_game_id: null }).eq('id', profile.id);
     persistClearActiveGame(profile.id);
   }, [profile]);
+
+  const confirmEndGame = useCallback(async () => {
+    const ok = await confirmAsync(
+      'Окончить игру?',
+      'Экран вернётся в обычный режим, и снова можно будет выбрать другой проект.',
+      'Окончить'
+    );
+    if (!ok) return;
+    hapticWarning();
+    endGame();
+  }, [endGame]);
 
   const loadProjects = useCallback(async () => {
     const { data } = await supabase.from('projects').select('*').order('name', { ascending: true });
@@ -267,12 +310,22 @@ export function Dashboard() {
   }
 
   const inGame = !!activeGame;
-  const tabItems = TABS[activeRole].map((item) =>
+  const baseTabs = activeRole === 'player' ? playerTabsFor(inGame) : TABS[activeRole];
+  const tabItems = baseTabs.map((item) =>
     activeRole === 'teamCommander' && item.key === 'requests' ? { ...item, badge: joinRequestCount } : item
   );
   const canSwitchContext = availableRoles.length > 1 || projects.length > 1;
 
   const moreItems: MoreItem[] = [];
+  if (activeRole === 'player' && inGame) {
+    moreItems.push({
+      key: 'end-game',
+      label: 'Окончить игру',
+      icon: 'flag-checkered',
+      subtitle: 'Вернуться в обычный режим',
+      onPress: confirmEndGame,
+    });
+  }
   if (activeRole === 'player') {
     moreItems.push({
       key: 'stats',
@@ -292,20 +345,26 @@ export function Dashboard() {
     });
   }
 
-  // Roles whose screen takes the tab as a prop share one pane, so their
-  // loaded data is kept across tabs instead of being refetched.
-  const singlePaneRole = activeRole === 'teamCommander' || activeRole === 'sideCommander' || activeRole === 'admin';
   const showPane = (role: RoleKey, tab: AnyTab) => visited.has(paneKey(role, tab)) || (role === activeRole && tab === activeTab);
   const isActive = (role: RoleKey, tab?: AnyTab) =>
     role === activeRole && (tab === undefined ? activeTab !== 'more' : activeTab === tab);
 
+  // "Солнце" lightens the whole chrome, but only on the game tab -- the
+  // other tabs are still dark screens, and a light frame around them
+  // would look broken.
+  const sunChrome = sun && inGame && activeRole === 'player' && activeTab === 'game' ? palette : null;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, sunChrome && { backgroundColor: sunChrome.bg }]}>
       <View style={styles.header}>
         <Pressable
           onPress={() => setContextVisible(true)}
           disabled={!canSwitchContext}
-          style={({ pressed }) => [styles.contextPill, pressed && styles.pressed]}
+          style={({ pressed }) => [
+            styles.contextPill,
+            sunChrome && { backgroundColor: sunChrome.card, borderColor: sunChrome.border },
+            pressed && styles.pressed,
+          ]}
           accessibilityRole="button"
           accessibilityLabel={`${activeProject?.name ?? 'Без проекта'}, ${ROLE_META[activeRole].label}. Сменить проект или роль`}
         >
@@ -317,15 +376,15 @@ export function Dashboard() {
             )}
           </View>
           <View style={styles.contextText}>
-            <Text style={styles.contextTitle} numberOfLines={1}>
+            <Text style={[styles.contextTitle, sunChrome && { color: sunChrome.text }]} numberOfLines={1}>
               {activeProject?.name ?? 'Airsoft Economy'}
             </Text>
-            <Text style={styles.contextSubtitle} numberOfLines={1}>
+            <Text style={[styles.contextSubtitle, sunChrome && { color: sunChrome.textMuted }]} numberOfLines={1}>
               {ROLE_META[activeRole].label}
               {activeProject?.archived_at ? ' · архив' : ''}
             </Text>
           </View>
-          {canSwitchContext ? <MaterialCommunityIcons name="chevron-down" size={18} color={colors.textMuted} /> : null}
+          {canSwitchContext ? <MaterialCommunityIcons name="chevron-down" size={18} color={sunChrome?.textMuted ?? colors.textMuted} /> : null}
         </Pressable>
 
         <View style={styles.headerRight}>
@@ -335,7 +394,7 @@ export function Dashboard() {
             accessibilityRole="button"
             accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
           >
-            <MaterialCommunityIcons name="bell-outline" size={23} color={colors.textMuted} />
+            <MaterialCommunityIcons name="bell-outline" size={23} color={sunChrome?.textMuted ?? colors.textMuted} />
             {unreadCount > 0 ? (
               <View style={styles.notificationDot}>
                 <Text style={styles.notificationDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -353,12 +412,7 @@ export function Dashboard() {
         </View>
       </View>
 
-      {inGame ? (
-        <View style={styles.liveStrip} accessibilityRole="text">
-          <View style={styles.liveDot} />
-          <Text style={styles.liveText}>В ИГРЕ</Text>
-        </View>
-      ) : null}
+      {activeGame ? <LiveStrip gameId={activeGame.gameId} /> : null}
 
       <View style={styles.body}>
         {/* Player */}
@@ -367,11 +421,38 @@ export function Dashboard() {
             <PlayerHomeScreen
               ownMembership={capabilities.ownMembership}
               activeProjectId={activeProjectId}
-              activeGame={activeGame}
               onStartGame={startGame}
-              onEndGame={endGame}
               onGoToGames={() => selectTab('games')}
               onOpenGame={openGame}
+            />
+          </Pane>
+        ) : null}
+        {activeGame && showPane('player', 'game') ? (
+          <Pane active={isActive('player', 'game')}>
+            <InGameScreen
+              key={activeGame.gameId}
+              gameId={activeGame.gameId}
+              ownMembership={capabilities.ownMembership}
+              onOpenTasks={() => selectTab('tasks')}
+              onOpenBriefing={() => selectTab('briefing')}
+            />
+          </Pane>
+        ) : null}
+        {activeGame && showPane('player', 'tasks') ? (
+          <Pane active={isActive('player', 'tasks')}>
+            <ScrollView key={activeGame.gameId} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+              <Text style={styles.screenTitle}>Задания</Text>
+              <TasksSection gameId={activeGame.gameId} splitClaimable />
+            </ScrollView>
+          </Pane>
+        ) : null}
+        {activeGame && showPane('player', 'briefing') ? (
+          <Pane active={isActive('player', 'briefing')}>
+            <GameCardScreen
+              key={activeGame.gameId}
+              gameId={activeGame.gameId}
+              ownMembership={capabilities.ownMembership}
+              showRegistration={false}
             />
           </Pane>
         ) : null}
@@ -468,7 +549,8 @@ export function Dashboard() {
         items={tabItems}
         activeKey={activeTab}
         onChange={selectTab}
-        tint={inGame && activeRole === 'player' ? colors.live : colors.accent}
+        tint={inGame && activeRole === 'player' ? palette.live : colors.accent}
+        surface={sunChrome ? { bg: sunChrome.card, border: sunChrome.border, inactive: sunChrome.textDim } : undefined}
       />
 
       <ContextSheet
@@ -598,26 +680,6 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.text,
   },
-  liveStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    backgroundColor: colors.live,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: 5,
-  },
-  liveDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.onLive,
-  },
-  liveText: {
-    fontFamily: font.bodyBold,
-    fontSize: 12,
-    letterSpacing: 0.6,
-    color: colors.onLive,
-  },
   body: {
     flex: 1,
   },
@@ -629,5 +691,20 @@ const styles = StyleSheet.create({
   },
   subpage: {
     flex: 1,
+  },
+  scroll: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  scrollContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+  },
+  screenTitle: {
+    fontFamily: font.heading,
+    fontSize: 26,
+    lineHeight: 32,
+    color: colors.text,
+    marginBottom: spacing.md,
   },
 });
