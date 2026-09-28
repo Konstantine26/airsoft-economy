@@ -3,6 +3,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { callMoneyRpc, moneyErrorMessage, newRequestId } from '../lib/money';
 import type { Game, GameParticipantStatus, GameSide, Polygon, Profile, Team, TeamJoinRequest } from '../lib/database.types';
 import { Avatar } from './Avatar';
 import { Button } from './Button';
@@ -265,14 +266,13 @@ export function TeamCommanderScreen({ teams, projectId, activeProjectId, onTeamD
   const distribute = async (profileId: string, amount: number) => {
     if (!projectId) return;
     setError(null);
-    const { error } = await supabase.rpc('distribute_to_participant', {
-      p_project_id: projectId,
-      p_from_team_id: activeTeam.id,
-      p_to_profile_id: profileId,
-      p_amount: amount,
-    });
+    const { error } = await callMoneyRpc(
+      'distribute_to_participant',
+      { p_project_id: projectId, p_from_team_id: activeTeam.id, p_to_profile_id: profileId, p_amount: amount },
+      newRequestId()
+    );
     if (error) {
-      setError(error.message);
+      setError(moneyErrorMessage(error));
       return;
     }
     setTeamBalance((b) => b - amount);

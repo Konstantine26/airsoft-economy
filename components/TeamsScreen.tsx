@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
+import { callMoneyRpc, moneyErrorMessage, newRequestId } from '../lib/money';
 import type { Profile, Team } from '../lib/database.types';
 import { TransferModal } from './TransferModal';
 import { Avatar } from './Avatar';
@@ -86,13 +87,13 @@ export function TeamsScreen({ projectId }: Props) {
   const depositTeam = async (teamId: string, amount: number) => {
     if (!projectId) return;
     setError(null);
-    const { error: depositError } = await supabase.rpc('deposit_to_team', {
-      p_project_id: projectId,
-      p_to_team_id: teamId,
-      p_amount: amount,
-    });
+    const { error: depositError } = await callMoneyRpc(
+      'deposit_to_team',
+      { p_project_id: projectId, p_to_team_id: teamId, p_amount: amount },
+      newRequestId()
+    );
     if (depositError) {
-      setError(depositError.message);
+      setError(moneyErrorMessage(depositError));
       return;
     }
     setTeams((prev) => prev.map((t) => (t.id === teamId ? { ...t, balance: t.balance + amount } : t)));
@@ -101,12 +102,12 @@ export function TeamsScreen({ projectId }: Props) {
   const depositParticipant = async (profileId: string, amount: number) => {
     if (!projectId) return;
     setError(null);
-    const { error: depositError } = await supabase.rpc('deposit_to_participant', {
-      p_project_id: projectId,
-      p_to_profile_id: profileId,
-      p_amount: amount,
-    });
-    if (depositError) setError(depositError.message);
+    const { error: depositError } = await callMoneyRpc(
+      'deposit_to_participant',
+      { p_project_id: projectId, p_to_profile_id: profileId, p_amount: amount },
+      newRequestId()
+    );
+    if (depositError) setError(moneyErrorMessage(depositError));
   };
 
   const participantQueryTrimmed = participantQuery.trim();

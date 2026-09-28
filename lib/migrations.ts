@@ -47,4 +47,5 @@ export const EXPECTED_MIGRATIONS: string[] = [
   '038_task_multi_side_and_customer_change.sql',
   '039_games_insert_project_organizer.sql',
   '040_task_row_visibility_sides.sql',
+  '041_idempotent_money.sql',
 ];

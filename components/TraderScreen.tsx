@@ -1,16 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { supabase } from '../lib/supabase';
 import type { TraderGame } from '../hooks/useCapabilities';
 import type { Game, Polygon, Project } from '../lib/database.types';
-import { Card } from './Card';
-import { Button } from './Button';
+import { formatDateTime } from '../lib/format';
+import { EmptyState } from './EmptyState';
+import { ListRow } from './ListRow';
+import { ScreenHeader } from './ScreenHeader';
+import { Segmented } from './Segmented';
 import { TasksSection } from './TasksSection';
-import { TraderChargeSection } from './TraderChargeSection';
-import { RevivalModal } from './RevivalModal';
-import { colors, font, spacing } from '../lib/theme';
+import { TraderDesk } from './TraderDesk';
+import { colors, font, radii, spacing } from '../lib/theme';
 
 type GameWithRelations = Game & { project: Project | null; polygon: Polygon | null };
+type View_ = 'desk' | 'tasks';
 
 type Props = {
   traderGames: TraderGame[];
@@ -21,7 +24,7 @@ export function TraderScreen({ traderGames, activeProjectId }: Props) {
   const [loading, setLoading] = useState(true);
   const [games, setGames] = useState<GameWithRelations[]>([]);
   const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
-  const [revivalModalOpen, setRevivalModalOpen] = useState(false);
+  const [view, setView] = useState<View_>('desk');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,6 +42,9 @@ export function TraderScreen({ traderGames, activeProjectId }: Props) {
       .order('created_at', { ascending: false });
     const rows = ((data as GameWithRelations[]) ?? []).filter((g) => g.project_id === activeProjectId);
     setGames(rows);
+    // A trader is usually on exactly one game: skip the list and open the
+    // counter straight away.
+    setSelectedGameId((prev) => (prev && rows.some((g) => g.id === prev) ? prev : rows.length === 1 ? rows[0].id : null));
     setLoading(false);
   }, [traderGames, activeProjectId]);
 
@@ -54,53 +60,65 @@ export function TraderScreen({ traderGames, activeProjectId }: Props) {
     );
   }
 
-  if (selectedGameId) {
-    const sideIds = traderGames.find((g) => g.gameId === selectedGameId)?.sideIds ?? [];
-    const game = games.find((g) => g.id === selectedGameId);
+  const game = games.find((g) => g.id === selectedGameId);
+
+  if (game) {
+    const sideIds = traderGames.find((g) => g.gameId === game.id)?.sideIds ?? [];
+    const economyProjectId = game.project?.economy_enabled ? game.project_id : null;
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-        <Pressable onPress={() => setSelectedGameId(null)}>
-          <Text style={styles.back}>‹ Игры</Text>
-        </Pressable>
-        <Text style={styles.title}>{game?.name}</Text>
-        <TraderChargeSection gameId={selectedGameId} projectId={game?.project_id ?? null} sideIds={sideIds} />
-        {game?.revival_enabled && game.project_id ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Воскрешение</Text>
-            <Button title="Возродить участника" onPress={() => setRevivalModalOpen(true)} />
-          </View>
-        ) : null}
-        <TasksSection gameId={selectedGameId} traderSideIds={sideIds} />
-        {game?.revival_enabled && game.project_id ? (
-          <RevivalModal
-            visible={revivalModalOpen}
-            projectId={game.project_id}
-            gameId={selectedGameId}
-            sideIds={sideIds}
-            onClose={() => setRevivalModalOpen(false)}
-            onSuccess={() => setRevivalModalOpen(false)}
+      <ScrollView style={styles.container} contentContainerStyle={styles.gameContent} keyboardShouldPersistTaps="handled">
+        <ScreenHeader
+          title={game.name}
+          backLabel={games.length > 1 ? 'Игры' : undefined}
+          onBack={games.length > 1 ? () => setSelectedGameId(null) : undefined}
+        />
+        <View style={styles.inset}>
+          <Segmented
+            items={[
+              { key: 'desk', label: 'Касса' },
+              { key: 'tasks', label: 'Задания' },
+            ]}
+            value={view}
+            onChange={setView}
           />
-        ) : null}
+          {view === 'desk' ? (
+            <TraderDesk
+              gameId={game.id}
+              projectId={economyProjectId}
+              sideIds={sideIds}
+              revivalEnabled={game.revival_enabled}
+            />
+          ) : (
+            <TasksSection gameId={game.id} traderSideIds={sideIds} />
+          )}
+        </View>
       </ScrollView>
     );
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Торговец</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.listContent}>
+      <Text style={styles.title}>Торговля</Text>
       {games.length === 0 ? (
-        <Text style={styles.label}>
-          {traderGames.length === 0 ? 'Вы пока не назначены торговцем ни на одну игру' : 'Нет игр в этом проекте'}
-        </Text>
+        <EmptyState
+          icon="storefront-outline"
+          title={traderGames.length === 0 ? 'Вы пока не торговец' : 'В этом проекте нет ваших игр'}
+          message={
+            traderGames.length === 0
+              ? 'Организатор назначает торговцев в карточке игры. После назначения здесь откроется касса.'
+              : 'Переключите проект в плашке сверху — ваши игры могут быть в другом.'
+          }
+        />
       ) : (
-        <View style={styles.cardsList}>
-          {games.map((game) => (
-            <Pressable key={game.id} onPress={() => setSelectedGameId(game.id)}>
-              <Card>
-                <Text style={styles.cardTitle}>{game.name}</Text>
-                <Text style={styles.label}>{game.project?.name ?? ''}</Text>
-              </Card>
-            </Pressable>
+        <View style={styles.group}>
+          {games.map((g, i) => (
+            <ListRow
+              key={g.id}
+              title={g.name}
+              subtitle={g.starts_at ? formatDateTime(g.starts_at) : (g.project?.name ?? null)}
+              divider={i < games.length - 1}
+              onPress={() => setSelectedGameId(g.id)}
+            />
           ))}
         </View>
       )}
@@ -113,48 +131,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  content: {
-    padding: spacing.lg,
-    paddingBottom: 40,
-  },
   center: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colors.bg,
   },
-  back: {
-    fontFamily: font.body,
-    color: colors.textMuted,
-    marginBottom: spacing.sm,
+  gameContent: {
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.xxxl,
+  },
+  inset: {
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+  },
+  listContent: {
+    padding: spacing.lg,
+    paddingBottom: spacing.xxxl,
+    gap: spacing.md,
   },
   title: {
     fontFamily: font.heading,
-    fontSize: 19,
-    color: colors.text,
-    marginBottom: spacing.md,
-  },
-  cardsList: {
-    gap: 10,
-  },
-  section: {
-    marginTop: spacing.lg,
-  },
-  sectionTitle: {
-    fontFamily: font.heading,
-    fontSize: 16,
-    color: colors.text,
-    marginBottom: spacing.sm + 2,
-  },
-  cardTitle: {
-    fontFamily: font.bodyBold,
-    fontSize: 14,
+    fontSize: 26,
+    lineHeight: 32,
     color: colors.text,
   },
-  label: {
-    fontFamily: font.body,
-    fontSize: 12,
-    color: colors.textMuted,
-    marginTop: 4,
+  group: {
+    backgroundColor: colors.card,
+    borderRadius: radii.lg,
+    paddingHorizontal: spacing.md + 2,
   },
 });

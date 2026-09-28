@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Text, View, StyleSheet } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { callMoneyRpc, moneyErrorMessage, newRequestId } from '../lib/money';
 import { Sheet } from './Sheet';
 import { Button } from './Button';
 import { TextField } from './TextField';
@@ -42,17 +42,16 @@ export function TransferModal({ visible, projectId, fromTeam, toTeam, onClose, o
     setSubmitting(true);
     setError(null);
 
-    const { error: rpcError } = await supabase.rpc('transfer_funds', {
-      p_project_id: projectId,
-      p_from_team_id: fromTeam.id,
-      p_to_team_id: toTeam.id,
-      p_amount: numericAmount,
-    });
+    const { error: rpcError } = await callMoneyRpc(
+      'transfer_funds',
+      { p_project_id: projectId, p_from_team_id: fromTeam.id, p_to_team_id: toTeam.id, p_amount: numericAmount },
+      newRequestId()
+    );
 
     setSubmitting(false);
 
     if (rpcError) {
-      setError(rpcError.message);
+      setError(moneyErrorMessage(rpcError));
       return;
     }
 

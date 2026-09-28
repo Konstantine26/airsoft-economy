@@ -1,30 +1,18 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { supabase } from '../lib/supabase';
 import { decodeParticipantCode } from '../lib/participantCode';
 import { formatMoney } from '../lib/format';
+import { callMoneyRpc, moneyErrorMessage, newRequestId } from '../lib/money';
 import { Sheet } from './Sheet';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { Avatar } from './Avatar';
+import { HoldToConfirmButton } from './HoldToConfirmButton';
 import { colors, font, radii, spacing } from '../lib/theme';
 
 type Mode = 'search' | 'scan' | 'confirm';
-
-const REVIVAL_ERROR_TRANSLATIONS: [string, string][] = [
-  ['insufficient balance', 'Недостаточно средств для воскрешения'],
-  ['revival cost is not configured', 'Стоимость воскрешения для этой стороны не задана'],
-  ['paid revival is not enabled', 'Платное воскрешение выключено в этой игре'],
-  ['only a trader or commander', 'Вы не назначены торговцем или командующим стороны этого участника'],
-  ['economy is not enabled', 'Экономика выключена в этом проекте'],
-  ['this project is archived', 'Проект архивирован'],
-];
-
-function translateRevivalError(message: string): string {
-  const found = REVIVAL_ERROR_TRANSLATIONS.find(([needle]) => message.includes(needle));
-  return found ? found[1] : message;
-}
 
 type ParticipantRow = {
   profileId: string;
@@ -56,6 +44,8 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
   const [submitting, setSubmitting] = useState(false);
   const [scanLocked, setScanLocked] = useState(false);
   const [permission, requestPermission] = useCameraPermissions();
+  // One request id per revival target, reused across retries.
+  const intent = useRef<{ profileId: string; id: string } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -152,16 +142,18 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
     if (!target) return;
     setSubmitting(true);
     setError(null);
-    const { error: rpcError } = await supabase.rpc('revive_participant', {
-      p_project_id: projectId,
-      p_game_id: gameId,
-      p_from_profile_id: target.profileId,
-    });
+    if (intent.current?.profileId !== target.profileId) intent.current = { profileId: target.profileId, id: newRequestId() };
+    const { error: rpcError } = await callMoneyRpc(
+      'revive_participant',
+      { p_project_id: projectId, p_game_id: gameId, p_from_profile_id: target.profileId },
+      intent.current.id
+    );
     setSubmitting(false);
     if (rpcError) {
-      setError(translateRevivalError(rpcError.message));
+      setError(moneyErrorMessage(rpcError));
       return;
     }
+    intent.current = null;
     onSuccess();
     onClose();
   };
@@ -279,14 +271,15 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
                   }}
                   style={styles.actionButton}
                 />
-                <Button
-                  title="Воскресить"
-                  onPress={submit}
-                  loading={submitting}
-                  disabled={noCost || insufficientBalance}
-                  style={styles.actionButton}
-                />
               </View>
+              <HoldToConfirmButton
+                tone="success"
+                title={noCost ? 'Воскресить' : `Воскресить за ${formatMoney(target.cost as number)}`}
+                onConfirm={submit}
+                loading={submitting}
+                disabled={noCost || insufficientBalance}
+                style={styles.holdButton}
+              />
             </>
           );
         })()
@@ -296,6 +289,9 @@ export function RevivalModal({ visible, projectId, gameId, sideIds, onClose, onS
 }
 
 const styles = StyleSheet.create({
+  holdButton: {
+    marginTop: spacing.md,
+  },
   title: {
     fontFamily: font.heading,
     fontSize: 18,
