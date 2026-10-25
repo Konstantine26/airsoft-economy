@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext';
 import type { Notification, NotificationKind } from '../lib/database.types';
 import { Button } from './Button';
 import { colors, font, radii, spacing } from '../lib/theme';
+import { PanelModal } from './PanelModal';
 
 type Props = {
   visible: boolean;
@@ -97,7 +98,7 @@ export function NotificationsScreen({ visible, onClose }: Props) {
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <PanelModal visible={visible} onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Уведомления</Text>
@@ -140,7 +141,7 @@ export function NotificationsScreen({ visible, onClose }: Props) {
           </ScrollView>
         )}
       </View>
-    </Modal>
+    </PanelModal>
   );
 }
 

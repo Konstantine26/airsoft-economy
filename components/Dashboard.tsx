@@ -4,8 +4,10 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { useCapabilities } from '../hooks/useCapabilities';
+import { CONTENT_MAX_WIDTH, useWideLayout } from '../hooks/useWideLayout';
 import { Avatar } from './Avatar';
 import { BottomTabBar, type BottomTabItem } from './BottomTabBar';
+import { SideNav } from './SideNav';
 import { ContextSheet, projectInitials } from './ContextSheet';
 import { MoreScreen, type MoreItem } from './MoreScreen';
 import { ScreenHeader } from './ScreenHeader';
@@ -112,6 +114,7 @@ export function Dashboard() {
   const { profile } = useAuth();
   const capabilities = useCapabilities();
   const { sun, palette } = useSunMode();
+  const wide = useWideLayout();
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeRole, setActiveRole] = useState<RoleKey | null>(null);
@@ -354,205 +357,209 @@ export function Dashboard() {
   // would look broken.
   const sunChrome = sun && inGame && activeRole === 'player' && activeTab === 'game' ? palette : null;
 
-  return (
-    <View style={[styles.container, sunChrome && { backgroundColor: sunChrome.bg }]}>
-      <View style={styles.header}>
-        <Pressable
-          onPress={() => setContextVisible(true)}
-          disabled={!canSwitchContext}
-          style={({ pressed }) => [
-            styles.contextPill,
-            sunChrome && { backgroundColor: sunChrome.card, borderColor: sunChrome.border },
-            pressed && styles.pressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel={`${activeProject?.name ?? 'Без проекта'}, ${ROLE_META[activeRole].label}. Сменить проект или роль`}
-        >
-          <View style={styles.contextMark}>
-            {activeProject ? (
-              <Text style={styles.contextMarkText}>{projectInitials(activeProject.name)}</Text>
-            ) : (
-              <MaterialCommunityIcons name="sword-cross" size={15} color={colors.accent} />
-            )}
-          </View>
-          <View style={styles.contextText}>
-            <Text style={[styles.contextTitle, sunChrome && { color: sunChrome.text }]} numberOfLines={1}>
-              {activeProject?.name ?? 'Airsoft Economy'}
-            </Text>
-            <Text style={[styles.contextSubtitle, sunChrome && { color: sunChrome.textMuted }]} numberOfLines={1}>
-              {ROLE_META[activeRole].label}
-              {activeProject?.archived_at ? ' · архив' : ''}
-            </Text>
-          </View>
-          {canSwitchContext ? <MaterialCommunityIcons name="chevron-down" size={18} color={sunChrome?.textMuted ?? colors.textMuted} /> : null}
-        </Pressable>
-
-        <View style={styles.headerRight}>
-          <Pressable
-            onPress={() => setNotificationsVisible(true)}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
-          >
-            <MaterialCommunityIcons name="bell-outline" size={23} color={sunChrome?.textMuted ?? colors.textMuted} />
-            {unreadCount > 0 ? (
-              <View style={styles.notificationDot}>
-                <Text style={styles.notificationDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-              </View>
-            ) : null}
-          </Pressable>
-          <Pressable
-            onPress={() => setProfileVisible(true)}
-            style={styles.iconButton}
-            accessibilityRole="button"
-            accessibilityLabel="Открыть профиль"
-          >
-            <Avatar uri={profile.avatar_url} name={profile.full_name} size={32} />
-          </Pressable>
-        </View>
+  const contextPill = (
+    <Pressable
+      onPress={() => setContextVisible(true)}
+      disabled={!canSwitchContext}
+      style={({ pressed }) => [
+        styles.contextPill,
+        wide && styles.contextPillWide,
+        sunChrome && { backgroundColor: sunChrome.card, borderColor: sunChrome.border },
+        pressed && styles.pressed,
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={`${activeProject?.name ?? 'Без проекта'}, ${ROLE_META[activeRole].label}. Сменить проект или роль`}
+    >
+      <View style={styles.contextMark}>
+        {activeProject ? (
+          <Text style={styles.contextMarkText}>{projectInitials(activeProject.name)}</Text>
+        ) : (
+          <MaterialCommunityIcons name="sword-cross" size={15} color={colors.accent} />
+        )}
       </View>
-
-      {activeGame ? <LiveStrip gameId={activeGame.gameId} /> : null}
-
-      <View style={styles.body}>
-        {/* Player */}
-        {showPane('player', 'home') ? (
-          <Pane active={isActive('player', 'home')}>
-            <PlayerHomeScreen
-              ownMembership={capabilities.ownMembership}
-              activeProjectId={activeProjectId}
-              onStartGame={startGame}
-              onGoToGames={() => selectTab('games')}
-              onOpenGame={openGame}
-            />
-          </Pane>
-        ) : null}
-        {activeGame && showPane('player', 'game') ? (
-          <Pane active={isActive('player', 'game')}>
-            <InGameScreen
-              key={activeGame.gameId}
-              gameId={activeGame.gameId}
-              ownMembership={capabilities.ownMembership}
-              onOpenTasks={() => selectTab('tasks')}
-              onOpenBriefing={() => selectTab('briefing')}
-            />
-          </Pane>
-        ) : null}
-        {activeGame && showPane('player', 'tasks') ? (
-          <Pane active={isActive('player', 'tasks')}>
-            <ScrollView key={activeGame.gameId} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
-              <Text style={styles.screenTitle}>Задания</Text>
-              <TasksSection gameId={activeGame.gameId} splitClaimable />
-            </ScrollView>
-          </Pane>
-        ) : null}
-        {activeGame && showPane('player', 'briefing') ? (
-          <Pane active={isActive('player', 'briefing')}>
-            <GameCardScreen
-              key={activeGame.gameId}
-              gameId={activeGame.gameId}
-              ownMembership={capabilities.ownMembership}
-              showRegistration={false}
-            />
-          </Pane>
-        ) : null}
-        {showPane('player', 'games') ? (
-          <Pane active={isActive('player', 'games')}>
-            <PlayerGamesScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} onOpenGame={openGame} />
-          </Pane>
-        ) : null}
-        {showPane('player', 'team') ? (
-          <Pane active={isActive('player', 'team')}>
-            <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
-          </Pane>
-        ) : null}
-        {showPane('player', 'wallet') ? (
-          <Pane active={isActive('player', 'wallet')}>
-            <WalletScreen projectId={economyProjectId} />
-          </Pane>
-        ) : null}
-
-        {/* Organizer */}
-        {showPane('organizer', 'overview') ? (
-          <Pane active={isActive('organizer', 'overview')}>
-            <OrganizerScreen view="overview" activeProjectId={activeProjectId} />
-          </Pane>
-        ) : null}
-        {showPane('organizer', 'games') ? (
-          <Pane active={isActive('organizer', 'games')}>
-            <OrganizerScreen view="games" activeProjectId={activeProjectId} />
-          </Pane>
-        ) : null}
-        {showPane('organizer', 'economy') ? (
-          <Pane active={isActive('organizer', 'economy')}>
-            <TeamsScreen projectId={economyProjectId} />
-          </Pane>
-        ) : null}
-
-        {/* Roles with one screen that switches its own sections */}
-        {availableRoles.includes('teamCommander') && hasVisitedRole(visited, 'teamCommander', activeRole) ? (
-          <Pane active={isActive('teamCommander')}>
-            <TeamCommanderScreen
-              tab={tabs.teamCommander as TeamCommanderTab}
-              teams={capabilities.commandedTeams}
-              projectId={economyProjectId}
-              activeProjectId={activeProjectId}
-              onTeamDisbanded={capabilities.refresh}
-              onRequestCountChange={setJoinRequestCount}
-            />
-          </Pane>
-        ) : null}
-        {availableRoles.includes('sideCommander') && hasVisitedRole(visited, 'sideCommander', activeRole) ? (
-          <Pane active={isActive('sideCommander')}>
-            <SideCommanderScreen key={activeProjectId ?? 'none'} tab={tabs.sideCommander as SideCommanderTab} sides={projectSides} />
-          </Pane>
-        ) : null}
-        {showPane('trader', 'trade') ? (
-          <Pane active={isActive('trader', 'trade')}>
-            <TraderScreen traderGames={capabilities.traderGames} activeProjectId={activeProjectId} />
-          </Pane>
-        ) : null}
-        {availableRoles.includes('admin') && hasVisitedRole(visited, 'admin', activeRole) ? (
-          <Pane active={isActive('admin')}>
-            <AdminScreen tab={tabs.admin as AdminTab} activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
-          </Pane>
-        ) : null}
-
-        {/* Ещё -- shared by every role, rebuilt per role (its items differ) */}
-        {activeTab === 'more' ? (
-          <Pane active>
-            {moreSubpage === 'stats' ? (
-              <View style={styles.subpage}>
-                <ScreenHeader title="Статистика" backLabel="Ещё" onBack={() => setMoreSubpage(null)} />
-                <PlayerStatsScreen activeProjectId={activeProjectId} economyProjectId={economyProjectId} />
-              </View>
-            ) : moreSubpage === 'migrations' ? (
-              <View style={styles.subpage}>
-                <ScreenHeader title="Миграции" backLabel="Ещё" onBack={() => setMoreSubpage(null)} />
-                <AdminMigrationsTab />
-              </View>
-            ) : (
-              <MoreScreen
-                roleItems={moreItems}
-                unreadCount={unreadCount}
-                inGame={inGame}
-                onOpenProfile={() => setProfileVisible(true)}
-                onOpenNotifications={() => setNotificationsVisible(true)}
-                onOpenHelp={() => setHelpVisible(true)}
-              />
-            )}
-          </Pane>
-        ) : null}
+      <View style={styles.contextText}>
+        <Text style={[styles.contextTitle, sunChrome && { color: sunChrome.text }]} numberOfLines={1}>
+          {activeProject?.name ?? 'Airsoft Economy'}
+        </Text>
+        <Text style={[styles.contextSubtitle, sunChrome && { color: sunChrome.textMuted }]} numberOfLines={1}>
+          {ROLE_META[activeRole].label}
+          {activeProject?.archived_at ? ' · архив' : ''}
+        </Text>
       </View>
+      {canSwitchContext ? (
+        <MaterialCommunityIcons
+          name="chevron-down"
+          size={18}
+          color={sunChrome?.textMuted ?? colors.textMuted}
+          style={wide && styles.contextChevronWide}
+        />
+      ) : null}
+    </Pressable>
+  );
 
-      <BottomTabBar
-        items={tabItems}
-        activeKey={activeTab}
-        onChange={selectTab}
-        tint={inGame && activeRole === 'player' ? palette.live : colors.accent}
-        surface={sunChrome ? { bg: sunChrome.card, border: sunChrome.border, inactive: sunChrome.textDim } : undefined}
-      />
+  const headerRight = (
+    <View style={styles.headerRight}>
+      <Pressable
+        onPress={() => setNotificationsVisible(true)}
+        style={styles.iconButton}
+        accessibilityRole="button"
+        accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
+      >
+        <MaterialCommunityIcons name="bell-outline" size={23} color={sunChrome?.textMuted ?? colors.textMuted} />
+        {unreadCount > 0 ? (
+          <View style={styles.notificationDot}>
+            <Text style={styles.notificationDotText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+          </View>
+        ) : null}
+      </Pressable>
+      <Pressable
+        onPress={() => setProfileVisible(true)}
+        style={styles.iconButton}
+        accessibilityRole="button"
+        accessibilityLabel="Открыть профиль"
+      >
+        <Avatar uri={profile.avatar_url} name={profile.full_name} size={32} />
+      </Pressable>
+    </View>
+  );
 
+  const tint = inGame && activeRole === 'player' ? palette.live : colors.accent;
+
+  const panes = (
+    <View style={[styles.body, wide && styles.bodyWide]}>
+      {/* Player */}
+      {showPane('player', 'home') ? (
+        <Pane active={isActive('player', 'home')}>
+          <PlayerHomeScreen
+            ownMembership={capabilities.ownMembership}
+            activeProjectId={activeProjectId}
+            onStartGame={startGame}
+            onGoToGames={() => selectTab('games')}
+            onOpenGame={openGame}
+          />
+        </Pane>
+      ) : null}
+      {activeGame && showPane('player', 'game') ? (
+        <Pane active={isActive('player', 'game')}>
+          <InGameScreen
+            key={activeGame.gameId}
+            gameId={activeGame.gameId}
+            ownMembership={capabilities.ownMembership}
+            onOpenTasks={() => selectTab('tasks')}
+            onOpenBriefing={() => selectTab('briefing')}
+          />
+        </Pane>
+      ) : null}
+      {activeGame && showPane('player', 'tasks') ? (
+        <Pane active={isActive('player', 'tasks')}>
+          <ScrollView key={activeGame.gameId} style={styles.scroll} contentContainerStyle={styles.scrollContent}>
+            <Text style={styles.screenTitle}>Задания</Text>
+            <TasksSection gameId={activeGame.gameId} splitClaimable />
+          </ScrollView>
+        </Pane>
+      ) : null}
+      {activeGame && showPane('player', 'briefing') ? (
+        <Pane active={isActive('player', 'briefing')}>
+          <GameCardScreen
+            key={activeGame.gameId}
+            gameId={activeGame.gameId}
+            ownMembership={capabilities.ownMembership}
+            showRegistration={false}
+          />
+        </Pane>
+      ) : null}
+      {showPane('player', 'games') ? (
+        <Pane active={isActive('player', 'games')}>
+          <PlayerGamesScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} onOpenGame={openGame} />
+        </Pane>
+      ) : null}
+      {showPane('player', 'team') ? (
+        <Pane active={isActive('player', 'team')}>
+          <PlayerTeamScreen ownMembership={capabilities.ownMembership} activeProjectId={activeProjectId} />
+        </Pane>
+      ) : null}
+      {showPane('player', 'wallet') ? (
+        <Pane active={isActive('player', 'wallet')}>
+          <WalletScreen projectId={economyProjectId} />
+        </Pane>
+      ) : null}
+
+      {/* Organizer */}
+      {showPane('organizer', 'overview') ? (
+        <Pane active={isActive('organizer', 'overview')}>
+          <OrganizerScreen view="overview" activeProjectId={activeProjectId} />
+        </Pane>
+      ) : null}
+      {showPane('organizer', 'games') ? (
+        <Pane active={isActive('organizer', 'games')}>
+          <OrganizerScreen view="games" activeProjectId={activeProjectId} />
+        </Pane>
+      ) : null}
+      {showPane('organizer', 'economy') ? (
+        <Pane active={isActive('organizer', 'economy')}>
+          <TeamsScreen projectId={economyProjectId} />
+        </Pane>
+      ) : null}
+
+      {/* Roles with one screen that switches its own sections */}
+      {availableRoles.includes('teamCommander') && hasVisitedRole(visited, 'teamCommander', activeRole) ? (
+        <Pane active={isActive('teamCommander')}>
+          <TeamCommanderScreen
+            tab={tabs.teamCommander as TeamCommanderTab}
+            teams={capabilities.commandedTeams}
+            projectId={economyProjectId}
+            activeProjectId={activeProjectId}
+            onTeamDisbanded={capabilities.refresh}
+            onRequestCountChange={setJoinRequestCount}
+          />
+        </Pane>
+      ) : null}
+      {availableRoles.includes('sideCommander') && hasVisitedRole(visited, 'sideCommander', activeRole) ? (
+        <Pane active={isActive('sideCommander')}>
+          <SideCommanderScreen key={activeProjectId ?? 'none'} tab={tabs.sideCommander as SideCommanderTab} sides={projectSides} />
+        </Pane>
+      ) : null}
+      {showPane('trader', 'trade') ? (
+        <Pane active={isActive('trader', 'trade')}>
+          <TraderScreen traderGames={capabilities.traderGames} activeProjectId={activeProjectId} />
+        </Pane>
+      ) : null}
+      {availableRoles.includes('admin') && hasVisitedRole(visited, 'admin', activeRole) ? (
+        <Pane active={isActive('admin')}>
+          <AdminScreen tab={tabs.admin as AdminTab} activeProjectId={economyProjectId} onProjectsChanged={loadProjects} />
+        </Pane>
+      ) : null}
+
+      {/* Ещё -- shared by every role, rebuilt per role (its items differ) */}
+      {activeTab === 'more' ? (
+        <Pane active>
+          {moreSubpage === 'stats' ? (
+            <View style={styles.subpage}>
+              <ScreenHeader title="Статистика" backLabel="Ещё" onBack={() => setMoreSubpage(null)} />
+              <PlayerStatsScreen activeProjectId={activeProjectId} economyProjectId={economyProjectId} />
+            </View>
+          ) : moreSubpage === 'migrations' ? (
+            <View style={styles.subpage}>
+              <ScreenHeader title="Миграции" backLabel="Ещё" onBack={() => setMoreSubpage(null)} />
+              <AdminMigrationsTab />
+            </View>
+          ) : (
+            <MoreScreen
+              roleItems={moreItems}
+              unreadCount={unreadCount}
+              inGame={inGame}
+              onOpenProfile={() => setProfileVisible(true)}
+              onOpenNotifications={() => setNotificationsVisible(true)}
+              onOpenHelp={() => setHelpVisible(true)}
+            />
+          )}
+        </Pane>
+      ) : null}
+    </View>
+  );
+
+  const overlays = (
+    <>
       <ContextSheet
         visible={contextVisible}
         onClose={() => setContextVisible(false)}
@@ -568,6 +575,87 @@ export function Dashboard() {
       <NotificationsScreen visible={notificationsVisible} onClose={closeNotifications} />
       <ProfileScreen visible={profileVisible} onClose={() => setProfileVisible(false)} />
       <OnboardingCarousel role={onboardingRole} onClose={closeOnboarding} />
+    </>
+  );
+
+  if (wide) {
+    const footerText = sunChrome ? { color: sunChrome.text } : null;
+    return (
+      <View style={[styles.container, styles.containerWide, sunChrome && { backgroundColor: sunChrome.bg }]}>
+        <SideNav
+          items={tabItems}
+          activeKey={activeTab}
+          onChange={selectTab}
+          tint={tint}
+          surface={
+            sunChrome ? { bg: sunChrome.card, border: sunChrome.border, inactive: sunChrome.textDim, text: sunChrome.text } : undefined
+          }
+          header={contextPill}
+          footer={
+            <>
+              <Pressable
+                onPress={() => setNotificationsVisible(true)}
+                style={({ pressed }) => [styles.navFooterRow, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel={unreadCount > 0 ? `Уведомления, непрочитанных: ${unreadCount}` : 'Уведомления'}
+              >
+                <View style={styles.navFooterIcon}>
+                  <MaterialCommunityIcons name="bell-outline" size={22} color={sunChrome?.textMuted ?? colors.textMuted} />
+                </View>
+                <Text style={[styles.navFooterText, footerText]} numberOfLines={1}>
+                  Уведомления
+                </Text>
+                {unreadCount > 0 ? (
+                  <View style={styles.navFooterBadge}>
+                    <Text style={styles.notificationDotText}>{unreadCount > 99 ? '99+' : unreadCount}</Text>
+                  </View>
+                ) : null}
+              </Pressable>
+              <Pressable
+                onPress={() => setProfileVisible(true)}
+                style={({ pressed }) => [styles.navFooterRow, pressed && styles.pressed]}
+                accessibilityRole="button"
+                accessibilityLabel="Открыть профиль"
+              >
+                <View style={styles.navFooterIcon}>
+                  <Avatar uri={profile.avatar_url} name={profile.full_name} size={28} />
+                </View>
+                <Text style={[styles.navFooterText, footerText]} numberOfLines={1}>
+                  {profile.full_name}
+                </Text>
+              </Pressable>
+            </>
+          }
+        />
+        <View style={styles.main}>
+          {activeGame ? <LiveStrip gameId={activeGame.gameId} /> : null}
+          {panes}
+        </View>
+        {overlays}
+      </View>
+    );
+  }
+
+  return (
+    <View style={[styles.container, sunChrome && { backgroundColor: sunChrome.bg }]}>
+      <View style={styles.header}>
+        {contextPill}
+        {headerRight}
+      </View>
+
+      {activeGame ? <LiveStrip gameId={activeGame.gameId} /> : null}
+
+      {panes}
+
+      <BottomTabBar
+        items={tabItems}
+        activeKey={activeTab}
+        onChange={selectTab}
+        tint={tint}
+        surface={sunChrome ? { bg: sunChrome.card, border: sunChrome.border, inactive: sunChrome.textDim } : undefined}
+      />
+
+      {overlays}
     </View>
   );
 }
@@ -584,8 +672,11 @@ function hasVisitedRole(visited: Set<string>, role: RoleKey, activeRole: RoleKey
 
 // Keeps a visited tab mounted but out of layout, so coming back to it is
 // instant and doesn't lose scroll position or half-typed input.
+// On wide screens each pane is a centred column, so rows and forms don't
+// stretch across the whole monitor.
 function Pane({ active, children }: { active: boolean; children: React.ReactNode }) {
-  return <View style={[styles.pane, !active && styles.paneHidden]}>{children}</View>;
+  const wide = useWideLayout();
+  return <View style={[styles.pane, wide && styles.paneWide, !active && styles.paneHidden]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -623,6 +714,12 @@ const styles = StyleSheet.create({
     paddingLeft: 5,
     paddingRight: spacing.sm + 2,
     paddingVertical: 5,
+  },
+  contextPillWide: {
+    alignSelf: 'stretch',
+  },
+  contextChevronWide: {
+    marginLeft: 'auto',
   },
   contextMark: {
     width: 32,
@@ -683,8 +780,49 @@ const styles = StyleSheet.create({
   body: {
     flex: 1,
   },
+  bodyWide: {
+    alignItems: 'center',
+  },
   pane: {
     flex: 1,
+  },
+  paneWide: {
+    width: '100%',
+    maxWidth: CONTENT_MAX_WIDTH,
+    paddingTop: spacing.md,
+  },
+  containerWide: {
+    flexDirection: 'row',
+  },
+  main: {
+    flex: 1,
+  },
+  navFooterRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    minHeight: sizes.hitMin,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.md,
+  },
+  navFooterIcon: {
+    width: 28,
+    alignItems: 'center',
+  },
+  navFooterText: {
+    flex: 1,
+    fontFamily: font.bodyMedium,
+    fontSize: 14.5,
+    color: colors.text,
+  },
+  navFooterBadge: {
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    backgroundColor: colors.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   paneHidden: {
     display: 'none',

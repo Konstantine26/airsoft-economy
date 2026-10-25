@@ -11,7 +11,8 @@ import { ProfileScreen } from './components/ProfileScreen';
 import { ToastProvider } from './components/Toast';
 import { configureSupabase, currentServer } from './lib/supabase';
 import { resolveSelectedServer, type ServerConfig } from './lib/serverConfig';
-import { colors, fontsToLoad } from './lib/theme';
+import { colors, fontsToLoad, radii } from './lib/theme';
+import { useWideLayout } from './hooks/useWideLayout';
 
 function Root({
   currentServer,
@@ -31,18 +32,42 @@ function Root({
   }
 
   if (!session) {
-    return <AuthScreen currentServer={currentServer} onServerChange={onServerChange} />;
+    return (
+      <FormFrame>
+        <AuthScreen currentServer={currentServer} onServerChange={onServerChange} />
+      </FormFrame>
+    );
   }
 
   if (profile?.must_change_password) {
-    return <ForceChangePasswordScreen />;
+    return (
+      <FormFrame>
+        <ForceChangePasswordScreen />
+      </FormFrame>
+    );
   }
 
   if (!profile?.full_name?.trim()) {
-    return <ProfileScreen />;
+    return (
+      <FormFrame>
+        <ProfileScreen />
+      </FormFrame>
+    );
   }
 
   return <Dashboard />;
+}
+
+// Sign-in and first-run forms are phone-sized; on a wide screen they sit in
+// a centred card instead of stretching every field across the monitor.
+function FormFrame({ children }: { children: React.ReactNode }) {
+  const wide = useWideLayout();
+  if (!wide) return <>{children}</>;
+  return (
+    <View style={styles.formBackdrop}>
+      <View style={styles.formCard}>{children}</View>
+    </View>
+  );
 }
 
 export default function App() {
@@ -95,6 +120,25 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
+  },
+  formBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    backgroundColor: colors.bg,
+  },
+  formCard: {
+    width: '100%',
+    maxWidth: 460,
+    maxHeight: 760,
+    flexShrink: 1,
+    minHeight: 520,
+    borderRadius: radii.sheet,
+    borderWidth: 1,
+    borderColor: colors.cardBorder,
+    backgroundColor: colors.bg,
+    overflow: 'hidden',
   },
   center: {
     flex: 1,

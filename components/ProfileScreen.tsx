@@ -1,6 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
@@ -10,6 +10,7 @@ import { Avatar } from './Avatar';
 import { Button } from './Button';
 import { TextField } from './TextField';
 import { colors, font, spacing } from '../lib/theme';
+import { PanelModal } from './PanelModal';
 
 const AVATAR_BUCKET = 'avatars';
 
@@ -159,7 +160,7 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
   }
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <PanelModal visible={visible} onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Профиль</Text>
@@ -171,7 +172,7 @@ export function ProfileScreen({ visible = true, onClose }: Props) {
           {content}
         </ScrollView>
       </View>
-    </Modal>
+    </PanelModal>
   );
 }
 

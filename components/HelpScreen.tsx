@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, font, radii, spacing } from '../lib/theme';
@@ -8,6 +8,7 @@ import { GLOSSARY, HELP_SECTIONS, INTRO_PARAGRAPHS } from '../lib/helpContent';
 import { Chip } from './Chip';
 import { Card } from './Card';
 import { Button } from './Button';
+import { PanelModal } from './PanelModal';
 
 type SectionKey = 'intro' | RoleKey | 'glossary';
 
@@ -22,7 +23,7 @@ export function HelpScreen({ visible, onClose, onReplayOnboarding }: Props) {
   const [section, setSection] = useState<SectionKey>('intro');
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <PanelModal visible={visible} onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>Справка</Text>
@@ -68,7 +69,7 @@ export function HelpScreen({ visible, onClose, onReplayOnboarding }: Props) {
           ) : null}
         </ScrollView>
       </View>
-    </Modal>
+    </PanelModal>
   );
 }
 
